@@ -1,3 +1,11 @@
+function makeRequestId() {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 15) | 64;
+  bytes[8] = (bytes[8] & 63) | 128;
+  const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
 const $ = (id) => document.getElementById(id);
 const statusNames = {accepted:'접수됨',planning:'판단 중',executing:'실행 중',succeeded:'HA 명령 수락',rejected:'실행하지 않음',failed:'실패',partial:'일부 실행',uncertain:'실행 여부 미확정'};
 const reasons = {provider_not_configured:'Configuration 탭에서 OpenRouter 또는 Azure 연결 정보를 입력하세요.',ha_not_ready:'Home Assistant 연결과 탐색이 필요합니다.',unsupported_or_ambiguous:'대상이 모호하거나 첫 Dev에서 지원하지 않는 명령입니다. 조명·스위치 ON/OFF를 요청하세요.',low_confidence:'판단이 불확실하여 실행하지 않았습니다.',plan_not_verified:'요청과 실행계획의 일치를 확인하지 못했습니다.',no_unambiguous_action:'명확한 실행 대상을 찾지 못했습니다.',no_allowed_entities:'허용된 조명·스위치가 없습니다.',entity_unavailable:'대상 기기의 현재 상태를 확인할 수 없습니다.',environment_changed:'판단 중 HA 환경 또는 허용 범위가 바뀌었습니다. 다시 요청하세요.',catalog_too_large:'현재 Dev의 안전한 요청 크기를 넘었습니다. 기기를 임의로 생략하지 않고 중단했습니다.',executor_busy:'이전 명령 처리 중입니다.',provider_authentication_failed:'공급자 인증 정보를 확인하세요.',provider_credit_required:'공급자 잔액을 확인하세요.',provider_rate_limited:'공급자 요청 한도에 도달했습니다.',request_origin_rejected:'요청을 인증할 수 없습니다.',ha_acknowledged_not_physical_confirmation:'HA가 명령을 수락했습니다. 실제 기기 완료는 별도입니다.',restart_interrupted:'재시작으로 중단되었습니다. 자동 재실행하지 않았습니다.'};
@@ -28,7 +36,7 @@ async function refresh(){
     updateExecute();
   }catch(e){latestStatus.execution_ready=false;updateExecute();$('top-status').textContent='연결 확인 필요';feedback('화면 연결을 확인하세요. '+displayReason(e.message),true);}
 }
-$('command-form').addEventListener('submit',async(event)=>{event.preventDefault();if(busy)return;const text=$('command').value.trim();if(!text)return;busy=true;updateExecute();feedback('요청을 확인하고 있습니다…');const requestId=crypto.randomUUID();try{let result=await api('commands',{method:'POST',body:JSON.stringify({text,request_id:requestId})});while(['accepted','planning','executing'].includes(result.status)){await new Promise(resolve=>setTimeout(resolve,750));result=await api(`commands/${requestId}`);}feedback(result.status==='succeeded'?'HA가 명령을 수락했습니다.':displayReason(result.reason),result.status!=='succeeded');}catch(e){feedback(displayReason(e.message),true);}finally{busy=false;await refresh();}});
+$('command-form').addEventListener('submit',async(event)=>{event.preventDefault();if(busy)return;const text=$('command').value.trim();if(!text)return;busy=true;updateExecute();feedback('요청을 확인하고 있습니다…');try{const requestId=makeRequestId();let result=await api('commands',{method:'POST',body:JSON.stringify({text,request_id:requestId})});while(['accepted','planning','executing'].includes(result.status)){await new Promise(resolve=>setTimeout(resolve,750));result=await api(`commands/${requestId}`);}feedback(result.status==='succeeded'?'HA가 명령을 수락했습니다.':displayReason(result.reason),result.status!=='succeeded');}catch(e){feedback(displayReason(e.message),true);}finally{busy=false;await refresh();}});
 document.querySelectorAll('.examples button').forEach(button=>button.addEventListener('click',()=>{$('command').value=button.textContent;$('command').focus();}));
 $('rescan').addEventListener('click',async()=>{$('rescan').disabled=true;feedback('기기를 다시 탐색합니다…');try{await api('rescan',{method:'POST',body:'{}'});feedback('탐색을 완료했습니다.');}catch(e){feedback(displayReason(e.message),true);}await refresh();});
 $('clear-history').addEventListener('click',async()=>{try{await api('history',{method:'DELETE'});await refresh();}catch(e){feedback(displayReason(e.message),true);}});
