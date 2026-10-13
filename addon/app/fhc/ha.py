@@ -75,12 +75,21 @@ class HA:
             entity_id = data["entity_id"]
             if new:
                 previous = self.states.get(entity_id)
-                if not previous or previous.get("attributes") != new.get("attributes"):
+                metadata = ("friendly_name", "supported_features")
+                if entity_id.split(".")[0] in {"light", "switch"} and (
+                    not previous
+                    or any(
+                        previous.get("attributes", {}).get(key)
+                        != new.get("attributes", {}).get(key)
+                        for key in metadata
+                    )
+                ):
                     self.version += 1
                 self.states[entity_id] = new
             else:
                 self.states.pop(entity_id, None)
-                self.version += 1
+                if entity_id.split(".")[0] in {"light", "switch"}:
+                    self.version += 1
         elif kind in {
             "entity_registry_updated",
             "device_registry_updated",

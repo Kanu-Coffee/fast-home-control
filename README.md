@@ -5,7 +5,7 @@ Home Assistant OS에서 자연어로 가전을 조작하는 작은 AI 리모컨�
 ## 설치
 
 1. Home Assistant의 **설정 → 앱 → 앱 스토어 → 저장소**에 `https://github.com/Kanu-Coffee/fast-home-control#dev`를 추가합니다. 이전 HA에서는 앱을 애드온이라고 표시합니다.
-2. **Fast Home Control Dev**를 설치합니다.
+2. **Fast Home Control Dev**를 설치합니다. 첫 Dev는 공개 소스로 기기에서 컨테이너를 빌드하므로 첫 설치에 시간이 걸릴 수 있습니다.
 3. Configuration에서 `openrouter_api_key`를 입력하거나 Azure의 세 항목을 입력하고 저장합니다.
 4. 앱을 시작하고 웹 UI를 엽니다. HA 주소, 액세스 토큰, 개별 기기 등록은 필요 없습니다.
 
@@ -43,10 +43,10 @@ OpenRouter 설정만으로 시작하는 것을 권장합니다. Azure만 설정�
 
 ```sh
 uv sync --frozen --python 3.13
-uv run ruff check app tests scripts
-uv run ruff format --check app tests scripts
+uv run ruff check addon/app tests scripts
+uv run ruff format --check addon/app tests scripts
 uv run pytest -q
-docker build -t fhc-dev .
+docker build -t fhc-dev addon
 ```
 
 [개발·실기동 테스트](docs/testing.md), [검증 기록](docs/verification.md), [릴리스 정책](docs/releases.md)을 제공합니다. Dev 개발·배포는 자율 진행하며 **Main과 안정 릴리스는 사용자 명시 승인 이후** 진행합니다. MIT License.

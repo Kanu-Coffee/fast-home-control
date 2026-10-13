@@ -1,12 +1,12 @@
 name: Fast Home Control Dev
 slug: fast_home_control_dev
 version: 0.1.0-dev.1
+stage: experimental
 description: Zero-config natural-language light and switch control using Microsoft Decision-1
 url: https://github.com/Kanu-Coffee/fast-home-control
 arch:
   - amd64
   - aarch64
-image: ghcr.io/kanu-coffee/fast-home-control-dev
 startup: application
 boot: auto
 init: false

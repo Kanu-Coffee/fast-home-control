@@ -9,7 +9,7 @@ dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.34,<1", "httpx>=0.28,<1", "webs
 dev = ["pytest>=8,<10", "pytest-asyncio>=0.25,<2", "ruff>=0.11,<1", "playwright>=1.50,<2", "pyyaml>=6,<7"]
 
 [tool.pytest.ini_options]
-pythonpath = ["app"]
+pythonpath = ["addon/app"]
 asyncio_mode = "auto"
 
 [tool.ruff]

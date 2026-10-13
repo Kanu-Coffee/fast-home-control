@@ -57,10 +57,10 @@ class Provider:
     async def decide(self, state, questions):
         # Inspect every question. Batching never discards entities through top-K retrieval.
         keys = list(questions)
-        if len(keys) > 16:
+        if len(keys) > 8:
             combined, used = {}, []
-            for index in range(0, len(keys), 16):
-                batch = {key: questions[key] for key in keys[index : index + 16]}
+            for index in range(0, len(keys), 8):
+                batch = {key: questions[key] for key in keys[index : index + 8]}
                 context = dict(state)
                 if "details" in context:
                     context["details"] = [d for d in context["details"] if d["id"] in batch]
@@ -96,7 +96,7 @@ class Provider:
                         403: "provider_forbidden",
                         402: "provider_credit_required",
                         429: "provider_rate_limited",
-                    }.get(response.status_code, "provider_request_failed")
+                    }.get(response.status_code, f"provider_http_{response.status_code}")
                     self.status[name] = last_error
                     continue
                 payload = response.json()
