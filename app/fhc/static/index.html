@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fast Home Control</title><link rel="stylesheet" href="static/style.css"><script src="static/app.js" defer></script></head>
+<body><header><a href="./">Fast Home Control</a><span id="top-status" class="muted">연결 확인 중</span></header>
+<main><section class="intro"><h1>무엇을 제어할까요?</h1><p>자연어로 집 안의 기기를 제어하세요.</p></section>
+<form id="command-form"><label class="sr-only" for="command">가전 제어 명령</label><textarea id="command" maxlength="1000" rows="3" placeholder="거실불 꺼줘" required></textarea><div class="compose-bottom"><span id="readiness" class="muted">연결 확인 중</span><button id="execute" type="submit" disabled>실행</button></div></form>
+<div class="examples" aria-label="명령 예시"><button type="button">거실 조명 켜줘</button><button type="button">집 전체 조명 꺼줘</button><button type="button">거실 스위치 꺼줘</button></div>
+<p id="feedback" role="status" aria-live="polite"></p>
+<div class="columns"><section class="panel"><div class="section-head"><h2>최근 실행</h2><button id="clear-history" class="text-button" type="button">기록 삭제</button></div><div id="history"><p class="muted empty">아직 실행 내역이 없습니다.</p></div><p class="muted note">완료는 HA의 명령 수락을 뜻하며, 실제 기기의 동작 완료와 다를 수 있습니다.</p></section>
+<section class="panel"><h2>연결 상태</h2><dl class="connections"><div><dt>Home Assistant</dt><dd id="ha-status">확인 중</dd></div><div><dt>OpenRouter</dt><dd id="openrouter-status">설정 필요</dd></div><div><dt>Azure Foundry</dt><dd id="azure-status">설정 필요</dd></div></dl><button id="rescan" class="outline" type="button">기기 다시 탐색</button><p id="sync-status" class="muted note"></p></section></div>
+<section class="panel scope"><h2>제어 범위</h2><p class="muted">그룹 단위로 제어를 허용합니다. 첫 Dev는 조명·스위치 ON/OFF를 지원합니다.</p><div id="domains"><p class="muted empty">Home Assistant에 연결하면 기기를 자동 탐색합니다.</p></div><p class="muted note">허용한 기기의 이름·영역과 명령이 설정한 모델 공급자에게 전달됩니다. API 연결 정보는 애드온 Configuration 탭에서 입력하세요.</p></section>
+</main><footer>Dev · <span id="version">0.1.0-dev.1</span></footer></body></html>

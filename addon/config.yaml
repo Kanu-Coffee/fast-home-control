@@ -1,0 +1,32 @@
+name: Fast Home Control Dev
+slug: fast_home_control_dev
+version: 0.1.0-dev.1
+description: Zero-config natural-language light and switch control using Microsoft Decision-1
+url: https://github.com/Kanu-Coffee/fast-home-control
+arch:
+  - amd64
+  - aarch64
+image: ghcr.io/kanu-coffee/fast-home-control-dev
+startup: application
+boot: auto
+init: false
+homeassistant_api: true
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:remote
+panel_title: Fast Home Control Dev
+panel_admin: true
+options:
+  provider: auto
+  rescan_hours: 12
+  history_days: 7
+  history_limit: 1000
+schema:
+  openrouter_api_key: password?
+  azure_api_key: password?
+  azure_endpoint: url?
+  azure_deployment: str?
+  provider: list(auto|openrouter|azure)
+  rescan_hours: int(1,168)
+  history_days: int(1,30)
+  history_limit: int(10,10000)

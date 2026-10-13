@@ -1,0 +1,23 @@
+configuration:
+  openrouter_api_key:
+    name: OpenRouter API Key
+    description: 선택 사항. OpenRouter 또는 Azure 중 하나만 설정해도 됩니다.
+  azure_api_key:
+    name: Azure API Key
+    description: Azure 단독 사용이 가능합니다.
+  azure_endpoint:
+    name: Azure 리소스 Endpoint
+    description: HTTPS 리소스 주소. API 경로 없이 입력하세요.
+  azure_deployment:
+    name: Azure 배포 이름
+    description: Microsoft-Decision-1을 배포한 이름입니다.
+  provider:
+    name: 우선 공급자
+    description: auto는 OpenRouter를 우선하며 사용 가능한 공급자로 전환합니다.
+  rescan_hours:
+    name: 전체 재탐색 주기 (시간)
+  history_days:
+    name: 이력 보존 기간 (일)
+  history_limit:
+    name: 이력 보존 건수
+    description: 중복 방지를 위해 최근 24시간의 요청 ID는 별도로 유지됩니다.
