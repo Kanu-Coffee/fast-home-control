@@ -49,6 +49,7 @@ const reasons = {
 
 let busy = false;
 let isAdminMode = false;
+let configBaseline = {};
 let currentPolicy = { domains: {}, entities: {} };
 let latestStatus = {};
 
@@ -233,6 +234,7 @@ async function loadStatus() {
 async function loadConfig() {
   try {
     const cfg = await api('config');
+    configBaseline = cfg;
     $('cfg-openrouter-status').textContent = cfg.openrouter_configured ? '설정됨' : '미설정';
     $('cfg-openrouter-status').className = cfg.openrouter_configured ? 'badge online' : 'badge';
     $('cfg-openrouter-model').value = cfg.openrouter_model || 'microsoft/microsoft-decision-1';
@@ -380,9 +382,9 @@ async function loadHistory() {
       body.append(node('div', displayReason(item.reason), 'result-detail'));
       const diagnostics = node('details');
       diagnostics.append(node('summary', '판단 및 단계별 진단'));
-      diagnostics.append(node('pre', JSON.stringify({request_id:item.id, model:item.model, providers:item.providers,
+      diagnostics.append(node('pre', JSON.stringify({request_id:item.id, phase:item.phase, model:item.model, model_trace:item.model_trace, providers:item.providers,
         timings_ms:item.timings_ms, scope_scores:item.scope_scores, decisions:item.decisions,
-        verification_score:item.verification_score}, null, 2), 'diagnostic-json'));
+        verification_score:item.verification_score, proposed_plan:item.proposed_plan}, null, 2), 'diagnostic-json'));
       body.append(diagnostics);
       row.append(body);
       container.append(row);
@@ -441,10 +443,16 @@ $('config-form').addEventListener('submit', async (e) => {
   const feedback = $('config-feedback');
   feedback.textContent = '설정 저장 중…';
 
-  const body = {
+  const body = {};
+  const changed = {
     provider: $('cfg-provider-priority').value,
     openrouter_model: $('cfg-openrouter-model').value.trim() || 'microsoft/microsoft-decision-1',
+    azure_endpoint: $('cfg-azure-endpoint').value.trim(),
+    azure_deployment: $('cfg-azure-deployment').value.trim(),
   };
+  for (const [key, value] of Object.entries(changed)) {
+    if (value !== (configBaseline[key] || '')) body[key] = value;
+  }
 
   const orKey = $('cfg-openrouter-key').value.trim();
   if (orKey) body.openrouter_api_key = orKey;
@@ -452,11 +460,6 @@ $('config-form').addEventListener('submit', async (e) => {
   const azKey = $('cfg-azure-key').value.trim();
   if (azKey) body.azure_api_key = azKey;
 
-  const azEp = $('cfg-azure-endpoint').value.trim();
-  body.azure_endpoint = azEp;
-
-  const azDep = $('cfg-azure-deployment').value.trim();
-  body.azure_deployment = azDep;
   body.delete_openrouter_api_key = $('delete-openrouter-key').checked;
   body.delete_azure_api_key = $('delete-azure-key').checked;
 

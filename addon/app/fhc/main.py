@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
 from . import VERSION
 from .catalog import SUPPORTED, Catalog
-from .config import load_options, save_options
+from .config import load_options, read_public_options, save_options
 from .engine import Engine
 from .ha import HA
 from .provider import Provider
@@ -167,7 +167,10 @@ async def status():
 
 @app.get("/api/config")
 async def get_config():
-    return app.state.provider.options.public_dict()
+    try:
+        return (await read_public_options(app.state.provider.options)).public_dict()
+    except ValueError:
+        raise HTTPException(503, "options_read_failed") from None
 
 
 @app.post("/api/config")

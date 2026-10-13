@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from .actions import capabilities
+from .actions import BRIGHTNESS_MODES, COLOR_MODES, capabilities
 
 SUPPORTED = {
     "light": "조명 · 전등 · 불",
@@ -41,6 +41,13 @@ class Entity:
             color_modes = self.features.get("supported_color_modes")
             if color_modes:
                 result["color_modes"] = color_modes
+                result["supports"] = ["on", "off"]
+                if set(color_modes) & BRIGHTNESS_MODES:
+                    result["supports"].extend(["brightness_pct", "brightness_step_pct"])
+                if set(color_modes) & COLOR_MODES:
+                    result["supports"].append("rgb_color")
+                if "color_temp" in color_modes:
+                    result["supports"].append("color_temp_kelvin")
         return {
             key: value
             for key, value in result.items()

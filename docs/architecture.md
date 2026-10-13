@@ -5,7 +5,7 @@
 Fast Home Control은 대화 비서가 아니라 HAOS에서 작동하는 자연어 리모컨이다. API 공급자 정보 외에 HA URL, Long-Lived Access Token, 기기 등록, 사용자 YAML을 요구하지 않는다.
 
 - **0.1.0-dev.1:** 조명·스위치 켜기/끄기 MVP.
-- **0.2.0-dev.3 (단계 A):** 기본 옵션 노출, 사용자 리모컨 / 관리자 설정 분리, 최근 성공 명령 원클릭 카드, OpenRouter 모델 선택, 공식 도메인 확장(climate 송풍/냉방/난방 모드 및 온도 설정, light 밝기·색상 설정), 도메인 및 엔티티 세부 제어 정책, SQLite user_version v2 마이그레이션.
+- **0.2.0-dev.4 (단계 A):** 기본 옵션 노출, 사용자 리모컨 / 관리자 설정 분리, 최근 성공 명령 원클릭 카드, OpenRouter 모델 선택, 공식 도메인 확장(climate 송풍/냉방/난방 모드 및 온도 설정, light 밝기·색상 설정), 도메인 및 엔티티 세부 제어 정책, SQLite user_version v3 마이그레이션.
 
 ## Decision-1의 실제 계약
 
@@ -17,16 +17,18 @@ OpenRouter는 `POST https://openrouter.ai/api/alpha/decisions`, Bearer 키, 모�
 
 1. **허용 카탈로그 구성:** 정책에 허용된 도메인 및 엔티티 전체를 구성한다. 도메인이 허용되어도 개별 제외된 엔티티는 제외한다. 사용자 문장의 로컬 정규식·키워드 매칭으로 기기를 사전에 제거하지 않는다.
 2. **범위 및 모드 판단:** 전체 허용 기기의 이름·별칭·장치 이름을 영역/도메인별로 압축해 전달한다. 모델이 요청의 지원 여부와 관련 그룹을 판단한다.
-3. **매개변수 바인딩 및 선택:** 원문의 literal 수치(온도, 밝기 %, 색상)와 엔티티가 실제 지원하는 기능(hvac_modes, temp_range, color_modes)을 대조하여 기기별 `choice` criteria를 동적으로 구성한다. 모델이 대상 기기별 최적 동작을 선택한다.
+3. **매개변수 바인딩 및 선택:** 원문의 literal 수치(온도, 밝기 %, 색상)와 엔티티가 실제 지원하는 기능(hvac_modes, temp_range, color_modes)을 대조하여 기기별 `choice` criteria를 동적으로 구성한다. 모델이 대상 기기별 속성과 원문 위치를 갖는 값 후보 ID를 선택한다. 후보는 capability에서 만들며 문구 키워드로 동작을 숨기지 않는다. 독립 속성을 합쳐 모드+온도 또는 색+밝기를 하나의 HA 호출로 구성한다.
 4. **계획 검증:** 요청 전체와 생성된 typed plan이 일치하는지 별도 모델 질문(`exact`)으로 검증한다. 범위 판단 0.9 이상, 중간 후보 0.6 이상, 최종 정확성 0.95 이상을 유지한다.
-5. **사전 조회 및 No-op 판단:** 모든 대상의 최신 HA 상태를 preflight로 조회한다. 조명이 이미 on이어도 밝기나 색상 변경은 실행하며, 동일한 상태일 때만 `already_in_state` no-op으로 처리한다. climate 역시 현재 모드/온도와 요청이 같을 때만 no-op으로 처리한다.
+5. **사전 조회 및 No-op 판단:** 모든 대상의 최신 HA 상태를 preflight로 조회한다. 조명이 이미 on이어도 밝기나 색상 변경은 실행하며, 전체 매개변수가 동일한 상태일 때만 `already_in_state` no-op으로 처리한다. climate 역시 현재 모드/온도와 요청이 같을 때만 no-op으로 처리한다.
 6. **디스패치 및 저널링:** 실행 직전 저널에 `uncertain`으로 기록하고 HA 서비스를 호출한다. `service_data` 매개변수를 공식 WS payload에 실어 전달한다. 미확인 응답은 재전송하지 않는다.
 
 ## HA 연동과 설정
 
 - `homeassistant_api: true`로 주입되는 `SUPERVISOR_TOKEN`과 `/core/websocket`, `/core/api`를 사용한다.
-- 관리자 모드에서 공급자 설정 및 모델 변경 시 Supervisor 자기 옵션 API (`/addons/self/options`)를 호출하여 안전하게 설정을 동기화한다.
-- SQLite 저널은 `PRAGMA user_version`을 순차 검사하여 v1에서 v2로 마이그레이션하며, 기존 정책을 무손실 매핑한다.
+- 관리 API는 trusted Ingress 사용자 ID와 매 요청 HA `config/auth/list` 결과의 활성 관리자 권한을 대조하며 확인 실패 시 닫힌다. 프록시에서 사용자 헤더 위조가 제거되는 경로를 실제 HAOS에서 확인한다.
+- 그룹은 알려진 실제 leaf로 전개하고 제외 정책과 dedup을 적용한다. override는 레지스트리 안정 ID를 함께 저장하며 rename에 이동, 재사용 ID에 quarantine을 적용한다. 정책 revision 변경은 실행 중단 사유다.
+- 관리자 모드에서 공급자 설정 및 모델 변경 시 Supervisor 자기 옵션 API (`/addons/self/options`)를 호출하여 최신 옵션을 읽어 변경 필드만 병합한다. 옵션 파일 직접 쓰기는 standalone에서만 사용하며 원자적 저장 실패는 성공으로 처리하지 않는다. 활성 job과 변경은 공통 경계로 보호한다.
+- SQLite 저널은 `PRAGMA user_version`을 순차 검사하여 이전 버전에서 v3로 마이그레이션하며, 기존 정책을 무손실 매핑한다.
 
 ## 후속 단계
 

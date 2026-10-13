@@ -267,6 +267,11 @@ async def test_standalone_persistence_failure_is_error(tmp_path, monkeypatch):
 def test_ingress_admin_fail_closed_and_revocation(tmp_path, monkeypatch):
     monkeypatch.setenv("FHC_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("FHC_STANDALONE_TOKEN", raising=False)
+
+    async def public_options(current):
+        return current
+
+    monkeypatch.setattr("fhc.main.read_public_options", public_options)
     active = {"value": True}
     with TestClient(app, client=("172.30.32.2", 1)) as c:
 
@@ -310,3 +315,24 @@ def test_settings_block_planning_and_apply_runtime(tmp_path, monkeypatch):
         assert app.state.ha.rescan_hours == 2
         assert (app.state.store.days, app.state.store.limit) == (3, 50)
         assert c.post("/api/config", json={"history_days": 0}, headers=headers).status_code == 400
+
+
+def test_no_singleton_decision_choices(ha):
+    climate(ha)
+    ha.states["light.living"]["attributes"].update(
+        supported_color_modes=["color_temp"], min_color_temp_kelvin=2000, max_color_temp_kelvin=6500
+    )
+    for entity in Catalog(ha, {"light": True, "climate": True}).entities.values():
+        assert all(
+            len(criteria) >= 2 for criteria in options_for(entity, literals("불 켜줘")).values()
+        )
+
+
+async def test_unreported_step_is_continuous_and_units_fallback(ha, store):
+    climate(ha, target_temp_step=None, temperature_unit=None)
+    ha.temperature_unit = "°C"
+    result = await execute(
+        ha, store, ScriptedProvider({"거실 에어컨": {"temperature": "v0"}}), "거실 에어컨24.5도"
+    )
+    assert result["status"] == "succeeded"
+    assert ha.calls[0][3]["temperature"] == 24.5

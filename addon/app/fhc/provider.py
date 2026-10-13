@@ -55,6 +55,7 @@ class Provider:
         if options.azure_error():
             self.status["azure"] = options.azure_error()
         self.calls = 0
+        self.trace = []
 
     async def decide(self, state, questions):
         # Inspect every question. Batching never discards entities through top-K retrieval.
@@ -115,6 +116,16 @@ class Provider:
                 self.status[name] = "invalid_model_response"
                 # An invalid decision is never retried to seek a more permissive answer.
                 raise DecisionError("invalid_model_response")
+            returned = payload.get("model")
+            self.trace.append(
+                {
+                    "provider": name,
+                    "requested_model": model,
+                    "returned_model": returned[:200] if isinstance(returned, str) else None,
+                }
+            )
+            # Bounded process diagnostics; request traces are copied into the journal.
+            self.trace = self.trace[-1000:]
             self.status[name] = "connected"
             return answers, name
         raise DecisionError(last_error)

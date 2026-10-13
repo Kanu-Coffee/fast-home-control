@@ -77,11 +77,17 @@ def options_for(entity, values):
     f = entity.features
     services = set(f.get("services", []))
     props = {}
-    power = {"none": "Do not change power; target absent/ambiguous or no power request"}
+    power = {
+        "none": "대상이 아님/전원 요청 없음/대상 모호. 이미 같은 상태라는 이유로 none을 선택하지 않음"
+    }
     flags = f.get("supported_features", 0)
     for service, flag in [("turn_on", 128), ("turn_off", 256)]:
         if service in services and (entity.domain != "climate" or flags & flag):
-            power[service] = "명시적으로 켠다" if service == "turn_on" else "명시적으로 끈다"
+            power[service] = (
+                "이 대상을 켜라는 명령 (현재 on이어도 선택)"
+                if service == "turn_on"
+                else "이 대상을 끄라는 명령 (현재 off여도 선택)"
+            )
     if len(power) > 1:
         props["power"] = power
     if entity.domain == "climate":
@@ -266,3 +272,26 @@ def is_already_in_state(action, state):
             "hvac_mode" not in data or current == data["hvac_mode"]
         )
     return False
+
+
+def describe_action(action):
+    """Explain validated HA service semantics without model-generated execution values."""
+    data = action.get("service_data") or {}
+    effects = []
+    if action["service"] == "turn_off":
+        effects.append("전원 끄기")
+    elif action["service"] == "turn_on":
+        effects.append("전원 켜짐(속성 변경의 HA 부수효과 포함)")
+    if "brightness_pct" in data:
+        effects.append(f"밝기 {data['brightness_pct']}%")
+    if "brightness_step_pct" in data:
+        effects.append(f"현재 밝기에서 {data['brightness_step_pct']:+}%p 변경")
+    if "rgb_color" in data:
+        effects.append(f"색상 RGB {data['rgb_color']}")
+    if "color_temp_kelvin" in data:
+        effects.append(f"조명 색온도 {data['color_temp_kelvin']} Kelvin")
+    if "hvac_mode" in data:
+        effects.append(f"HVAC 모드 {data['hvac_mode']}")
+    if "temperature" in data:
+        effects.append(f"목표 온도 {data['temperature']}{action.get('temperature_unit') or ''}")
+    return "; ".join(effects)

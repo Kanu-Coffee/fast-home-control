@@ -188,7 +188,7 @@ class Store:
             try:
                 res = json.loads(raw)
                 if res.get("status") == "succeeded" and not res.get("hidden"):
-                    norm = text.strip()
+                    norm = " ".join(text.split())
                     if norm and norm not in seen:
                         seen.add(norm)
                         shortcuts.append(norm)

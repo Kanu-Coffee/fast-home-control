@@ -115,6 +115,19 @@ async def supervisor_options(client):
     return payload["data"]["options"]
 
 
+async def read_public_options(current):
+    if os.environ.get("FHC_STANDALONE_TOKEN"):
+        path = Path(os.environ.get("FHC_OPTIONS_PATH", "/data/options.json"))
+        return await asyncio.to_thread(lambda: load_options() if path.exists() else current)
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=10, trust_env=False) as client:
+            return Options.model_validate(await supervisor_options(client))
+    except (httpx.HTTPError, ValueError, TypeError):
+        raise ValueError("options_read_failed") from None
+
+
 async def save_options(updates: dict, current: Options | None = None) -> Options:
     import tempfile
 
