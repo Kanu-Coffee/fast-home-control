@@ -9,3 +9,15 @@
 실기동 시 다음을 구분해 확인한다: HA 자동 탐색과 별칭, 실제 모델 판단, HA 서비스 수락, 가상 기기 상태 변화, Ingress 브라우저 조작. 기기 추가/삭제·영역/이름 변경·수동 탐색·HA 재시작 후 복구를 검사한다. 키/오류 본문을 출력하지 않고 명령·상태·지연만 기록한다. 테스트 종료 후 임시 서버와 VM 프로세스를 정리한다.
 
 브라우저 테스트는 로컬 Playwright Chromium을 사용한다. 데스크톱과 모바일에서 오버플로, 버튼·도메인 정책·이력·재탐색을 검사한다. 결과와 검증 공백은 [verification.md](verification.md)에 남긴다.
+
+## 0.2 단계 A 회귀
+
+`tests/test_corrections.py`는 그룹 leaf 제외/중복/순환, 안정 ID rename, legacy DB/손상/미래 버전, 단위/step/최신 capability, 대상별 literal 연결, 복합 속성/no-op, Supervisor 최신 옵션 병합/오류, 활성 planning 중 변경, 관리 권한 거부를 검사한다. 전체 71개 테스트와 Ruff/JS 구문 검사를 실행한다.
+
+테스트 VM에서만 `tests/fixtures/haos.yaml`을 사용한다. 공식 demo 기기, 실제 조명 그룹, 밝기/색 없는 template light를 제공한다. 사용자 설치에는 YAML 편집이 필요 없다. 레지스트리에서 `climate.hvac` 이름을 “거실 에어컨”, `climate.heatpump`를 “침실 에어컨”으로 설정하고 기존 영역 fixture를 유지한다.
+
+유효한 개발용 HA 토큰과 OpenRouter 키를 Git 제외 `.local/ha-credentials.json` / `.local/options.json`에 준비한 뒤 `PYTHONPATH=addon/app uv run python scripts/evaluate_stage_a.py`를 실행한다. localhost 테스트 HAOS와 Microsoft Decision-1/OpenRouter만 허용하는 검사이며 다른 모델/운영 HA로 바꿔 실행하지 않는다. 실제 HA 상태·속성과 기대값을 비교하고 `.local/stage-a-evaluation.json`에 결과를 기록한다. 키와 토큰을 출력하지 않는다. 단위 테스트와 이 실제 호출 결과를 혼동하지 않는다.
+
+Supervisor의 공식 저장소 갱신→업데이트로 시험한다. **이미 설치한 Dev보다 높은 버전 식별자가 있어야 업데이트된다.** 이번 검증은 0.1.0-dev.1→0.2.0-dev.2→dev.3→dev.4→dev.5→dev.6로 수행했다. Main/안정 버전은 자동 변경하지 않는다.
+
+`guest_console.py`는 프로젝트 전용 serial socket에서 root prompt를 확인한 뒤 명령을 보낸다. CLI spinner 실행 중 다음 명령이 유실되지 않도록 `ha --no-progress ...`와 충분한 timeout을 사용한다. timeout은 명령 취소가 아니므로 상태를 조회한 뒤 다음 작업을 진행한다.

@@ -1,6 +1,6 @@
 [project]
 name = "fast-home-control"
-version = "0.2.0.dev5"
+version = "0.2.0.dev6"
 description = "A zero-config decision-model remote for Home Assistant OS"
 requires-python = ">=3.13"
 dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.34,<1", "httpx>=0.28,<1", "websockets>=15,<17", "pydantic>=2.10,<3"]

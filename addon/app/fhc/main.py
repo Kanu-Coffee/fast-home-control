@@ -285,6 +285,21 @@ async def rescan():
     return {"ok": app.state.ha.ready}
 
 
+def command_summary(record):
+    # Full phase/model diagnostics are available only through admin /api/history.
+    public = {
+        key: value
+        for key, value in record.items()
+        if key
+        in {"id", "text", "status", "reason", "actions", "timings_ms", "created", "model_calls"}
+    }
+    public["actions"] = [
+        {k: v for k, v in action.items() if k not in {"selected", "ref"}}
+        for action in record.get("actions", [])
+    ]
+    return public
+
+
 @app.post("/api/commands", status_code=202)
 async def command(body: Command):
     request_id, text = str(body.request_id), body.text.strip()
@@ -294,7 +309,7 @@ async def command(body: Command):
     if existing:
         if existing[0] != text:
             raise HTTPException(409, "request_id_conflict")
-        return existing[1]
+        return command_summary(existing[1])
     if any(not task.done() for task in app.state.tasks):
         raise HTTPException(409, "executor_busy")
     if not app.state.ha.ready:
@@ -305,7 +320,7 @@ async def command(body: Command):
     task = asyncio.create_task(app.state.engine.run(request_id, text), name=request_id)
     app.state.tasks.add(task)
     task.add_done_callback(app.state.tasks.discard)
-    return record
+    return command_summary(record)
 
 
 @app.get("/api/commands/{request_id}")
@@ -313,7 +328,7 @@ async def get_command(request_id: uuid.UUID):
     found = app.state.store.get(str(request_id))
     if not found:
         raise HTTPException(404, "request_not_found")
-    return found[1]
+    return command_summary(found[1])
 
 
 @app.get("/api/history")

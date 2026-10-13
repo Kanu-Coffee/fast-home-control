@@ -336,3 +336,22 @@ async def test_unreported_step_is_continuous_and_units_fallback(ha, store):
     )
     assert result["status"] == "succeeded"
     assert ha.calls[0][3]["temperature"] == 24.5
+
+
+def test_public_command_response_excludes_admin_diagnostics():
+    from fhc.main import command_summary
+
+    public = command_summary(
+        {
+            "id": "id",
+            "status": "rejected",
+            "phase": "actions",
+            "decisions": {"e1": 0.8},
+            "scope_scores": {"e1": 0.9},
+            "proposed_plan": [],
+            "model_trace": [{"provider": "openrouter"}],
+            "actions": [],
+            "reason": "low_confidence",
+        }
+    )
+    assert set(public) == {"id", "status", "actions", "reason"}
