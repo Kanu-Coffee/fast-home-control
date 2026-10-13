@@ -1,4 +1,4 @@
-# 0.2.0-dev.2
+# 0.2.0-dev.3
 
 - 기본 Configuration 탭 API 및 모델 입력 숨김 해결 (기본 options 노출 및 Azure endpoint str 스키마 적용).
 - 사용자 리모컨 화면과 관리자 설정·진단 화면 분리 (상시 진단/경고 문구 제거, 간결한 요약 결과).

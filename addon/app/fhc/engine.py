@@ -55,12 +55,11 @@ class Engine:
                 state = {
                     "command": text,
                     "catalog": catalog.compact(),
-                    "supported_actions": [
-                        "turn_on",
-                        "turn_off",
-                        "set_hvac_mode",
-                        "set_temperature",
-                    ],
+                    "supported_actions": {
+                        "light": "turn_on with optional brightness_pct, brightness_step_pct, rgb_color, color_temp_kelvin; turn_off",
+                        "switch": "turn_on, turn_off",
+                        "climate": "turn_on, turn_off, set_hvac_mode with supported enum, set_temperature with optional hvac_mode",
+                    },
                     "rules": "No physical execution until all command clauses are validated.",
                 }
                 tick = time.perf_counter()
@@ -136,6 +135,7 @@ class Engine:
                 if not plan:
                     raise DecisionError("no_unambiguous_action")
 
+                record["proposed_plan"] = plan
                 tick = time.perf_counter()
                 verified, provider = await self.provider.decide(
                     {
@@ -157,8 +157,8 @@ class Engine:
                         "exact": {
                             "type": "noul",
                             "instructions": "plan이 사용자의 command를 빠짐없이 정확하게 수행하는가? "
-                            "조명(light), 스위치(switch), 에어컨(climate)의 켜기/끄기, 모드(송풍, 냉방 등), 온도, 밝기, 색상 설정이 "
-                            "원문 요청과 일치하면 true. "
+                            "조명(light), 스위치(switch), 에어컨(climate)의 켜기/끄기, 모드(송풍, 냉방 등), 온도, 밝기, 색상, Kelvin 색온도 설정이 "
+                            "원문 요청과 일치하면 true. light.turn_on에 brightness_step_pct=-10은 조금 어둡게, rgb_color는 RGB 색, color_temp_kelvin은 K 색온도다. 속성 변경에 필요한 켜짐 효과는 명시적 금지가 없으면 허용한다. "
                             "거실불/거실조명 같은 영역 조명 표현은 그 영역의 모든 light를 뜻한다. "
                             "집 전체 조명은 catalog의 모든 light를 뜻한다. "
                             "대상 또는 동작이 빠지거나 추가되었거나 잘못되면 false. "

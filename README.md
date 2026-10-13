@@ -1,6 +1,6 @@
 # Fast Home Control — Dev
 
-Home Assistant OS에서 자연어로 가전을 조작하는 작은 AI 리모컨입니다. Microsoft-Decision-1의 구조화된 판단 API를 사용합니다. **0.2.0-dev.2에서는 조명·스위치뿐 아니라 에어컨/공조(climate) 제어 및 조명 밝기·색상 제어**를 지원합니다.
+Home Assistant OS에서 자연어로 가전을 조작하는 작은 AI 리모컨입니다. Microsoft-Decision-1의 구조화된 판단 API를 사용합니다. **0.2.0-dev.3에서는 조명·스위치뿐 아니라 에어컨/공조(climate) 제어 및 조명 밝기·색상 제어**를 지원합니다.
 
 ## 설치
 

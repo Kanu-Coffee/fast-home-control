@@ -133,7 +133,7 @@ def options_for(entity, values):
                     if v["unit"] in {"", "K", "k", "켈빈"}
                 },
             }
-    return props
+    return {key: criteria for key, criteria in props.items() if len(criteria) > 1}
 
 
 def temperature(value, f):
