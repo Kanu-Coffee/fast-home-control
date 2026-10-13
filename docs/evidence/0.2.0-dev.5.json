@@ -1,0 +1,470 @@
+{
+  "version": "0.2.0-dev.5",
+  "environment": {
+    "haos": "18.3",
+    "core": "2026.10.1",
+    "host": "project-owned disposable localhost HAOS",
+    "model": "microsoft/microsoft-decision-1",
+    "provider": "openrouter",
+    "azure_live": false,
+    "arm_runtime": false
+  },
+  "source": "scripts/evaluate_stage_a.py: real model + actual HA state verification; fixed fixture, not a general accuracy guarantee",
+  "cases": [
+    {
+      "command": "거실 에어컨 켜줘 송풍모드",
+      "expected": {
+        "climate.hvac": {
+          "state": "fan_only"
+        }
+      },
+      "pass": true,
+      "status": "succeeded",
+      "reason": "ha_acknowledged_not_physical_confirmation",
+      "phase": "execution",
+      "model_calls": 4,
+      "timings_ms": {
+        "scope_roundtrip": 2990,
+        "action_roundtrip": 957,
+        "verify_roundtrip": 859,
+        "preflight": 4,
+        "first_dispatch": 4811,
+        "total": 4816
+      },
+      "actions": [
+        {
+          "entity_id": "climate.hvac",
+          "service": "set_hvac_mode",
+          "service_data": {
+            "hvac_mode": "fan_only"
+          },
+          "status": "sent",
+          "context_id": "01M4SXWXZRJ8A90GWDBGDTG7MB"
+        }
+      ],
+      "verified_attributes": {
+        "climate.hvac": {
+          "state": "fan_only"
+        }
+      }
+    },
+    {
+      "command": "거실 에어컨 바람만 나오게 해줘",
+      "expected": {
+        "climate.hvac": {
+          "state": "fan_only"
+        }
+      },
+      "pass": true,
+      "status": "succeeded",
+      "reason": "ha_acknowledged_not_physical_confirmation",
+      "phase": "execution",
+      "model_calls": 4,
+      "timings_ms": {
+        "scope_roundtrip": 1830,
+        "action_roundtrip": 917,
+        "verify_roundtrip": 835,
+        "preflight": 3,
+        "total": 3585
+      },
+      "actions": [
+        {
+          "entity_id": "climate.hvac",
+          "service": "set_hvac_mode",
+          "service_data": {
+            "hvac_mode": "fan_only"
+          },
+          "status": "already_in_state",
+          "context_id": null
+        }
+      ],
+      "verified_attributes": {
+        "climate.hvac": {
+          "state": "fan_only"
+        }
+      }
+    },
+    {
+      "command": "거실 에어컨 제습으로 바꿔",
+      "expected": {
+        "climate.hvac": {
+          "state": "dry"
+        }
+      },
+      "pass": true,
+      "status": "succeeded",
+      "reason": "ha_acknowledged_not_physical_confirmation",
+      "phase": "execution",
+      "model_calls": 4,
+      "timings_ms": {
+        "scope_roundtrip": 1937,
+        "action_roundtrip": 917,
+        "verify_roundtrip": 833,
+        "preflight": 2,
+        "first_dispatch": 3690,
+        "total": 3692
+      },
+      "actions": [
+        {
+          "entity_id": "climate.hvac",
+          "service": "set_hvac_mode",
+          "service_data": {
+            "hvac_mode": "dry"
+          },
+          "status": "sent",
+          "context_id": "01M4SXX53FRK8N9Q8ZNAG0YJ2Z"
+        }
+      ],
+      "verified_attributes": {
+        "climate.hvac": {
+          "state": "dry"
+        }
+      }
+    },
+    {
+      "command": "거실 에어컨 냉방 25도로",
+      "expected": {
+        "climate.hvac": {
+          "state": "cool",
+          "temperature": 25
+        }
+      },
+      "pass": true,
+      "status": "succeeded",
+      "reason": "ha_acknowledged_not_physical_confirmation",
+      "phase": "execution",
+      "model_calls": 4,
+      "timings_ms": {
+        "scope_roundtrip": 1856,
+        "action_roundtrip": 968,
+        "verify_roundtrip": 830,
+        "preflight": 2,
+        "first_dispatch": 3657,
+        "total": 3660
+      },
+      "actions": [
+        {
+          "entity_id": "climate.hvac",
+          "service": "set_temperature",
+          "service_data": {
+            "temperature": 25.0,
+            "hvac_mode": "cool"
+          },
+          "status": "sent",
+          "context_id": "01M4SXX8NXFHNCWXK47CARJ7SS"
+        }
+      ],
+      "verified_attributes": {
+        "climate.hvac": {
+          "state": "cool",
+          "temperature": 25.0
+        }
+      }
+    },
+    {
+      "command": "거실 에어컨 26도, 침실 에어컨 24도로",
+      "expected": {
+        "climate.hvac": {
+          "temperature": 26
+        },
+        "climate.heatpump": {
+          "temperature": 24
+        }
+      },
+      "pass": false,
+      "status": "rejected",
+      "reason": "low_confidence",
+      "phase": "actions",
+      "model_calls": 3,
+      "timings_ms": {
+        "scope_roundtrip": 1864,
+        "action_roundtrip": 956,
+        "total": 2821
+      },
+      "actions": [],
+      "verified_attributes": {
+        "climate.hvac": {
+          "temperature": 25.0
+        },
+        "climate.heatpump": {
+          "temperature": 20.0
+        }
+      }
+    },
+    {
+      "command": "천장등 빨간색 밝기 30프로",
+      "expected": {
+        "light.ceiling_lights": {
+          "rgb_color": [
+            255,
+            0,
+            0
+          ],
+          "brightness": 76
+        }
+      },
+      "pass": true,
+      "status": "succeeded",
+      "reason": "ha_acknowledged_not_physical_confirmation",
+      "phase": "execution",
+      "model_calls": 4,
+      "timings_ms": {
+        "scope_roundtrip": 1798,
+        "action_roundtrip": 995,
+        "verify_roundtrip": 891,
+        "preflight": 3,
+        "first_dispatch": 3688,
+        "total": 3694
+      },
+      "actions": [
+        {
+          "entity_id": "light.ceiling_lights",
+          "service": "turn_on",
+          "service_data": {
+            "brightness_pct": 30.0,
+            "rgb_color": [
+              255,
+              0,
+              0
+            ]
+          },
+          "status": "sent",
+          "context_id": "01M4SXXF1Q053T258RWMA0V5XA"
+        }
+      ],
+      "verified_attributes": {
+        "light.ceiling_lights": {
+          "rgb_color": [
+            255,
+            0,
+            0
+          ],
+          "brightness": 76
+        }
+      }
+    },
+    {
+      "command": "천장등 색온도 3500K로",
+      "expected": {
+        "light.ceiling_lights": {
+          "color_temp_kelvin": 3500
+        }
+      },
+      "pass": true,
+      "status": "succeeded",
+      "reason": "ha_acknowledged_not_physical_confirmation",
+      "phase": "execution",
+      "model_calls": 4,
+      "timings_ms": {
+        "scope_roundtrip": 1869,
+        "action_roundtrip": 893,
+        "verify_roundtrip": 872,
+        "preflight": 2,
+        "first_dispatch": 3637,
+        "total": 3640
+      },
+      "actions": [
+        {
+          "entity_id": "light.ceiling_lights",
+          "service": "turn_on",
+          "service_data": {
+            "color_temp_kelvin": 3500
+          },
+          "status": "sent",
+          "context_id": "01M4SXXJKQN8PATZ8GGAGENSJE"
+        }
+      ],
+      "verified_attributes": {
+        "light.ceiling_lights": {
+          "color_temp_kelvin": 3500
+        }
+      }
+    },
+    {
+      "command": "천장등 조금 어둡게 해줘",
+      "expected": {
+        "light.ceiling_lights": {}
+      },
+      "pass": true,
+      "status": "succeeded",
+      "reason": "ha_acknowledged_not_physical_confirmation",
+      "phase": "execution",
+      "model_calls": 4,
+      "timings_ms": {
+        "scope_roundtrip": 1847,
+        "action_roundtrip": 923,
+        "verify_roundtrip": 846,
+        "preflight": 3,
+        "first_dispatch": 3620,
+        "total": 3634
+      },
+      "actions": [
+        {
+          "entity_id": "light.ceiling_lights",
+          "service": "turn_on",
+          "service_data": {
+            "brightness_step_pct": -10
+          },
+          "status": "sent",
+          "context_id": "01M4SXXP52TFCWBA4NZ6B5PB0B"
+        }
+      ],
+      "verified_attributes": {
+        "light.ceiling_lights": {}
+      }
+    },
+    {
+      "command": "거실불 꺼줘",
+      "expected": {
+        "light.ceiling_lights": {
+          "state": "off"
+        },
+        "light.living_room_rgbww_lights": {
+          "state": "off"
+        }
+      },
+      "pass": true,
+      "status": "succeeded",
+      "reason": "ha_acknowledged_not_physical_confirmation",
+      "phase": "execution",
+      "model_calls": 4,
+      "timings_ms": {
+        "scope_roundtrip": 1846,
+        "action_roundtrip": 910,
+        "verify_roundtrip": 872,
+        "preflight": 9,
+        "first_dispatch": 3638,
+        "total": 3649
+      },
+      "actions": [
+        {
+          "entity_id": "light.ceiling_lights",
+          "service": "turn_off",
+          "service_data": {},
+          "status": "sent",
+          "context_id": "01M4SXXSQCZFEGG2905V5G69MJ"
+        },
+        {
+          "entity_id": "light.living_room_rgbww_lights",
+          "service": "turn_off",
+          "service_data": {},
+          "status": "sent",
+          "context_id": "01M4SXXSQJM55F83KXXYDYQB2P"
+        }
+      ],
+      "verified_attributes": {
+        "light.ceiling_lights": {
+          "state": "off"
+        },
+        "light.living_room_rgbww_lights": {
+          "state": "off"
+        }
+      }
+    },
+    {
+      "command": "거실전등 켜줘",
+      "expected": {
+        "light.ceiling_lights": {
+          "state": "on"
+        },
+        "light.living_room_rgbww_lights": {
+          "state": "on"
+        }
+      },
+      "pass": false,
+      "status": "rejected",
+      "reason": "unsupported_or_ambiguous",
+      "phase": "scope",
+      "model_calls": 2,
+      "timings_ms": {
+        "scope_roundtrip": 1893,
+        "total": 1893
+      },
+      "actions": [],
+      "verified_attributes": {
+        "light.ceiling_lights": {
+          "state": "off"
+        },
+        "light.living_room_rgbww_lights": {
+          "state": "off"
+        }
+      }
+    },
+    {
+      "command": "거실 에어컨 -25도로",
+      "expected": {},
+      "pass": true,
+      "status": "rejected",
+      "reason": "unsupported_or_ambiguous",
+      "phase": "scope",
+      "model_calls": 2,
+      "timings_ms": {
+        "scope_roundtrip": 1845,
+        "total": 1846
+      },
+      "actions": [],
+      "verified_attributes": {}
+    },
+    {
+      "command": "천장등 밝기 -20%",
+      "expected": {},
+      "pass": true,
+      "status": "rejected",
+      "reason": "brightness_out_of_range",
+      "phase": "actions",
+      "model_calls": 3,
+      "timings_ms": {
+        "scope_roundtrip": 1852,
+        "action_roundtrip": 922,
+        "total": 2775
+      },
+      "actions": [],
+      "verified_attributes": {}
+    },
+    {
+      "command": "거실 불 끄고 현관문 열어줘",
+      "expected": {},
+      "pass": true,
+      "status": "rejected",
+      "reason": "unsupported_or_ambiguous",
+      "phase": "scope",
+      "model_calls": 2,
+      "timings_ms": {
+        "scope_roundtrip": 1766,
+        "total": 1767
+      },
+      "actions": [],
+      "verified_attributes": {}
+    },
+    {
+      "command": "아무거나 켜줘",
+      "expected": {},
+      "pass": true,
+      "status": "rejected",
+      "reason": "unsupported_or_ambiguous",
+      "phase": "scope",
+      "model_calls": 2,
+      "timings_ms": {
+        "scope_roundtrip": 1823,
+        "total": 1824
+      },
+      "actions": [],
+      "verified_attributes": {}
+    },
+    {
+      "command": "거실 불 켜져 있으면 꺼줘",
+      "expected": {},
+      "pass": true,
+      "status": "rejected",
+      "reason": "unsupported_or_ambiguous",
+      "phase": "scope",
+      "model_calls": 2,
+      "timings_ms": {
+        "scope_roundtrip": 1840,
+        "total": 1840
+      },
+      "actions": [],
+      "verified_attributes": {}
+    }
+  ]
+}
