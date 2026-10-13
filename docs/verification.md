@@ -27,7 +27,9 @@
 
 설치된 앱의 Ingress에서 “거실불 꺼줘”를 실행하고 거실 조명 두 개에 대한 전송 결과를 확인했다. 성공 표시와 기기 완료를 구분한다. HA 서비스 수락은 물리 기기 완료 보장이 아니다. 실제 스마트 전구·스위치 하드웨어는 사용하지 않았다.
 
-앱 소스 `65e2477`을 HAOS에서 다시 빌드하고, “침실 조명 켜줘”의 실제 상태 변경, 이력 삭제, 한국어 실행 상태, 모바일 화면과 JavaScript 오류 없음을 재확인했다. 인증 없는 Ingress 요청은 401이었다. amd64 검사·빌드와 aarch64 컨테이너 빌드가 [GitHub CI](https://github.com/Kanu-Coffee/fast-home-control/actions/runs/38340304657)에서 통과했다. 후속 공급자 설정 오류 격리 변경은 별도로 재검증한다.
+앱 소스 `6e8262c`까지 HAOS에서 다시 빌드했다. “침실 조명 켜줘”의 실제 상태 변경, 이력 삭제, 한국어 실행 상태, 모바일 화면과 JavaScript 오류 없음을 확인했다. 인증 없는 Ingress 요청은 401이었다. amd64 검사·빌드와 aarch64 컨테이너 빌드가 [GitHub CI](https://github.com/Kanu-Coffee/fast-home-control/actions/runs/38341750734)에서 통과했다. 후속 문서·캡처 커밋은 이 앱 소스를 변경하지 않는다.
+
+추가 실기동에서는 우선 공급자를 Azure로 지정하고 Azure endpoint를 잘못된 HTTP 주소로 설정한 뒤, 정상 OpenRouter로 “침실 조명 꺼줘”가 실행되는지 확인했다. 브라우저는 실제 `http://fhc.test` 테스트 origin으로 접속했으며 `isSecureContext=false`, `crypto.randomUUID=undefined` 환경에서도 요청 ID를 생성하고 명령을 전송했다. HTTPS 없는 HA 접속을 지원하기 위해 [randomUUID의 secure context 제약](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)을 처리하고 [getRandomValues](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues) 기반 UUID를 사용한다. 시험 후 정상 공급자 설정으로 복구했다.
 
 ## 실제 모델 평가
 
