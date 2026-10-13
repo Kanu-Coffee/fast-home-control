@@ -79,6 +79,24 @@ def test_catalog_enforces_hidden_disabled_and_domains(ha):
     assert [e.entity_id for e in catalog.entities.values()] == ["light.bedroom"]
 
 
+def test_hundreds_of_entities_are_not_truncated_or_lexically_filtered(ha):
+    for index in range(500):
+        entity_id = f"light.test_{index}"
+        ha.states[entity_id] = {
+            "state": "off",
+            "attributes": {"friendly_name": f"테스트 조명 {index}"},
+        }
+        ha.registry.append(
+            {"entity_id": entity_id, "area_id": "living", "aliases": [f"별칭{index}"]}
+        )
+    catalog = Catalog(ha, {"light": True, "switch": True})
+    exposed = [e for group in catalog.compact() for e in group["entities"]]
+    assert len(exposed) == 503
+    assert {f"별칭{i}" for i in range(500)}.issubset(
+        {a for e in exposed for a in e.get("aliases", [])}
+    )
+
+
 async def test_already_off_is_noop(ha, store):
     ha.states["light.living"]["state"] = "off"
     result = await execute(ha, store, ScriptedProvider(), "거실불 꺼줘")

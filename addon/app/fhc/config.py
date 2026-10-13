@@ -2,7 +2,7 @@ import json
 import os
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError, model_validator
 
 
 class Options(BaseModel):
@@ -50,4 +50,8 @@ class Options(BaseModel):
 
 def load_options() -> Options:
     path = Path(os.environ.get("FHC_OPTIONS_PATH", "/data/options.json"))
-    return Options.model_validate(json.loads(path.read_text()) if path.exists() else {})
+    try:
+        return Options.model_validate(json.loads(path.read_text()) if path.exists() else {})
+    except (ValidationError, ValueError, OSError):
+        # Pydantic model-level errors can include the entire raw input, including keys.
+        raise ValueError("invalid_app_options") from None

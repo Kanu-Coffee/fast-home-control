@@ -1,0 +1,634 @@
+[
+  {
+    "text": "거실불 꺼줘",
+    "status": "succeeded",
+    "reason": "ha_acknowledged_not_physical_confirmation",
+    "actions": [
+      {
+        "entity_id": "light.ceiling_lights",
+        "name": "천장등",
+        "domain": "light",
+        "service": "turn_off",
+        "ref": "e1",
+        "status": "sent",
+        "previous_state": "on",
+        "ha_ack_ms": 2
+      },
+      {
+        "entity_id": "light.living_room_rgbww_lights",
+        "name": "거실 보조등",
+        "domain": "light",
+        "service": "turn_off",
+        "ref": "e4",
+        "status": "sent",
+        "previous_state": "on",
+        "ha_ack_ms": 2
+      }
+    ],
+    "timings_ms": {
+      "scope_roundtrip": 1143,
+      "action_roundtrip": 878,
+      "verify_roundtrip": 820,
+      "preflight": 5,
+      "first_dispatch": 2846,
+      "total": 2850
+    },
+    "model_calls": 3,
+    "passed": true,
+    "before": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    },
+    "after": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "off",
+      "light.living_room_rgbww_lights": "off",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    }
+  },
+  {
+    "text": "거실전등 꺼줘",
+    "status": "succeeded",
+    "reason": "ha_acknowledged_not_physical_confirmation",
+    "actions": [
+      {
+        "entity_id": "light.ceiling_lights",
+        "name": "천장등",
+        "domain": "light",
+        "service": "turn_off",
+        "ref": "e1",
+        "status": "sent",
+        "previous_state": "on",
+        "ha_ack_ms": 2
+      },
+      {
+        "entity_id": "light.living_room_rgbww_lights",
+        "name": "거실 보조등",
+        "domain": "light",
+        "service": "turn_off",
+        "ref": "e4",
+        "status": "sent",
+        "previous_state": "on",
+        "ha_ack_ms": 2
+      }
+    ],
+    "timings_ms": {
+      "scope_roundtrip": 893,
+      "action_roundtrip": 899,
+      "verify_roundtrip": 809,
+      "preflight": 5,
+      "first_dispatch": 2605,
+      "total": 2609
+    },
+    "model_calls": 3,
+    "passed": true,
+    "before": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    },
+    "after": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "off",
+      "light.living_room_rgbww_lights": "off",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    }
+  },
+  {
+    "text": "거실조명 꺼줘",
+    "status": "succeeded",
+    "reason": "ha_acknowledged_not_physical_confirmation",
+    "actions": [
+      {
+        "entity_id": "light.ceiling_lights",
+        "name": "천장등",
+        "domain": "light",
+        "service": "turn_off",
+        "ref": "e1",
+        "status": "sent",
+        "previous_state": "on",
+        "ha_ack_ms": 2
+      },
+      {
+        "entity_id": "light.living_room_rgbww_lights",
+        "name": "거실 보조등",
+        "domain": "light",
+        "service": "turn_off",
+        "ref": "e4",
+        "status": "sent",
+        "previous_state": "on",
+        "ha_ack_ms": 1
+      }
+    ],
+    "timings_ms": {
+      "scope_roundtrip": 918,
+      "action_roundtrip": 866,
+      "verify_roundtrip": 827,
+      "preflight": 4,
+      "first_dispatch": 2615,
+      "total": 2619
+    },
+    "model_calls": 3,
+    "passed": true,
+    "before": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    },
+    "after": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "off",
+      "light.living_room_rgbww_lights": "off",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    }
+  },
+  {
+    "text": "거실 불 켜줘",
+    "status": "succeeded",
+    "reason": "ha_acknowledged_not_physical_confirmation",
+    "actions": [
+      {
+        "entity_id": "light.ceiling_lights",
+        "name": "천장등",
+        "domain": "light",
+        "service": "turn_on",
+        "ref": "e1",
+        "status": "sent",
+        "previous_state": "off",
+        "ha_ack_ms": 1
+      },
+      {
+        "entity_id": "light.living_room_rgbww_lights",
+        "name": "거실 보조등",
+        "domain": "light",
+        "service": "turn_on",
+        "ref": "e4",
+        "status": "sent",
+        "previous_state": "off",
+        "ha_ack_ms": 2
+      }
+    ],
+    "timings_ms": {
+      "scope_roundtrip": 861,
+      "action_roundtrip": 903,
+      "verify_roundtrip": 831,
+      "preflight": 4,
+      "first_dispatch": 2599,
+      "total": 2602
+    },
+    "model_calls": 3,
+    "passed": true,
+    "before": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "off",
+      "light.kitchen_lights": "off",
+      "light.ceiling_lights": "off",
+      "light.living_room_rgbww_lights": "off",
+      "light.entrance_color_white_lights": "off",
+      "light.office_rgbw_lights": "off"
+    },
+    "after": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "off",
+      "light.kitchen_lights": "off",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "off",
+      "light.office_rgbw_lights": "off"
+    }
+  },
+  {
+    "text": "침실 조명 전부 꺼줘",
+    "status": "succeeded",
+    "reason": "ha_acknowledged_not_physical_confirmation",
+    "actions": [
+      {
+        "entity_id": "light.bed_light",
+        "name": "침실등",
+        "domain": "light",
+        "service": "turn_off",
+        "ref": "e0",
+        "status": "sent",
+        "previous_state": "on",
+        "ha_ack_ms": 2
+      }
+    ],
+    "timings_ms": {
+      "scope_roundtrip": 882,
+      "action_roundtrip": 899,
+      "verify_roundtrip": 836,
+      "preflight": 3,
+      "first_dispatch": 2620,
+      "total": 2623
+    },
+    "model_calls": 3,
+    "passed": true,
+    "before": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    },
+    "after": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "off",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    }
+  },
+  {
+    "text": "집에 있는 조명 전부 꺼줘",
+    "status": "succeeded",
+    "reason": "ha_acknowledged_not_physical_confirmation",
+    "actions": [
+      {
+        "entity_id": "light.bed_light",
+        "name": "침실등",
+        "domain": "light",
+        "service": "turn_off",
+        "ref": "e0",
+        "status": "sent",
+        "previous_state": "on",
+        "ha_ack_ms": 2
+      },
+      {
+        "entity_id": "light.ceiling_lights",
+        "name": "천장등",
+        "domain": "light",
+        "service": "turn_off",
+        "ref": "e1",
+        "status": "sent",
+        "previous_state": "on",
+        "ha_ack_ms": 2
+      },
+      {
+        "entity_id": "light.living_room_rgbww_lights",
+        "name": "거실 보조등",
+        "domain": "light",
+        "service": "turn_off",
+        "ref": "e4",
+        "status": "sent",
+        "previous_state": "on",
+        "ha_ack_ms": 1
+      },
+      {
+        "entity_id": "light.entrance_color_white_lights",
+        "name": "현관등",
+        "domain": "light",
+        "service": "turn_off",
+        "ref": "e2",
+        "status": "sent",
+        "previous_state": "on",
+        "ha_ack_ms": 2
+      },
+      {
+        "entity_id": "light.kitchen_lights",
+        "name": "주방등",
+        "domain": "light",
+        "service": "turn_off",
+        "ref": "e3",
+        "status": "sent",
+        "previous_state": "on",
+        "ha_ack_ms": 1
+      },
+      {
+        "entity_id": "light.office_rgbw_lights",
+        "name": "서재등",
+        "domain": "light",
+        "service": "turn_off",
+        "ref": "e5",
+        "status": "sent",
+        "previous_state": "on",
+        "ha_ack_ms": 2
+      }
+    ],
+    "timings_ms": {
+      "scope_roundtrip": 902,
+      "action_roundtrip": 847,
+      "verify_roundtrip": 868,
+      "preflight": 15,
+      "first_dispatch": 2633,
+      "total": 2645
+    },
+    "model_calls": 3,
+    "passed": true,
+    "before": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    },
+    "after": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "off",
+      "light.kitchen_lights": "off",
+      "light.ceiling_lights": "off",
+      "light.living_room_rgbww_lights": "off",
+      "light.entrance_color_white_lights": "off",
+      "light.office_rgbw_lights": "off"
+    }
+  },
+  {
+    "text": "거실 불 끄고 거실 콘센트 켜줘",
+    "status": "rejected",
+    "reason": "plan_not_verified",
+    "actions": [],
+    "timings_ms": {
+      "scope_roundtrip": 855,
+      "action_roundtrip": 827,
+      "verify_roundtrip": 846,
+      "total": 2528
+    },
+    "model_calls": 3,
+    "passed": false,
+    "before": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    },
+    "after": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    }
+  },
+  {
+    "text": "거실 불 켜져 있으면 꺼줘",
+    "status": "rejected",
+    "reason": "unsupported_or_ambiguous",
+    "actions": [],
+    "timings_ms": {
+      "scope_roundtrip": 891,
+      "total": 892
+    },
+    "model_calls": 1,
+    "passed": true,
+    "before": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    },
+    "after": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    }
+  },
+  {
+    "text": "거실 불 조금 어둡게 해줘",
+    "status": "rejected",
+    "reason": "unsupported_or_ambiguous",
+    "actions": [],
+    "timings_ms": {
+      "scope_roundtrip": 908,
+      "total": 909
+    },
+    "model_calls": 1,
+    "passed": true,
+    "before": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    },
+    "after": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    }
+  },
+  {
+    "text": "아무거나 꺼줘",
+    "status": "rejected",
+    "reason": "unsupported_or_ambiguous",
+    "actions": [],
+    "timings_ms": {
+      "scope_roundtrip": 848,
+      "total": 848
+    },
+    "model_calls": 1,
+    "passed": true,
+    "before": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    },
+    "after": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    }
+  },
+  {
+    "text": "불 꺼줘",
+    "status": "rejected",
+    "reason": "unsupported_or_ambiguous",
+    "actions": [],
+    "timings_ms": {
+      "scope_roundtrip": 916,
+      "total": 916
+    },
+    "model_calls": 1,
+    "passed": true,
+    "before": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    },
+    "after": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    }
+  },
+  {
+    "text": "거실 불 꺼줘 그리고 현관문 열어줘",
+    "status": "rejected",
+    "reason": "unsupported_or_ambiguous",
+    "actions": [],
+    "timings_ms": {
+      "scope_roundtrip": 877,
+      "total": 877
+    },
+    "model_calls": 1,
+    "passed": true,
+    "before": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    },
+    "after": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    }
+  },
+  {
+    "text": "거실 불 꺼줘라는 문장을 영어로 번역해줘",
+    "status": "rejected",
+    "reason": "unsupported_or_ambiguous",
+    "actions": [],
+    "timings_ms": {
+      "scope_roundtrip": 944,
+      "total": 944
+    },
+    "model_calls": 1,
+    "passed": true,
+    "before": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    },
+    "after": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    }
+  },
+  {
+    "text": "거실 불 끄지 마",
+    "status": "rejected",
+    "reason": "unsupported_or_ambiguous",
+    "actions": [],
+    "timings_ms": {
+      "scope_roundtrip": 894,
+      "total": 894
+    },
+    "model_calls": 1,
+    "passed": true,
+    "before": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    },
+    "after": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    }
+  },
+  {
+    "text": "10분 뒤 거실 불 꺼줘",
+    "status": "rejected",
+    "reason": "unsupported_or_ambiguous",
+    "actions": [],
+    "timings_ms": {
+      "scope_roundtrip": 923,
+      "total": 923
+    },
+    "model_calls": 1,
+    "passed": true,
+    "before": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    },
+    "after": {
+      "switch.decorative_lights": "off",
+      "light.bed_light": "on",
+      "light.kitchen_lights": "on",
+      "light.ceiling_lights": "on",
+      "light.living_room_rgbww_lights": "on",
+      "light.entrance_color_white_lights": "on",
+      "light.office_rgbw_lights": "on"
+    }
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "entities": 503,
+  "catalog_bytes": 24327,
+  "roundtrip_ms": 1336,
+  "answers": {
+    "g0": {
+      "type": "noul",
+      "noul": 0.0031726905794798323
+    },
+    "g1": {
+      "type": "noul",
+      "noul": 0.9994472212872617
+    },
+    "g2": {
+      "type": "noul",
+      "noul": 0.007577276570805273
+    },
+    "supported": {
+      "type": "noul",
+      "noul": 0.9964063926507024
+    }
+  },
+  "provider": "openrouter",
+  "executed": false
+}
