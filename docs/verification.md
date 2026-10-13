@@ -4,7 +4,7 @@
 
 ## 자동 검사
 
-- Python 3.13, pytest **30개 통과**. 전체 카탈로그 전달, 모의 공급자 계약(OpenRouter/Azure 단독), 잘못된 확률/응답 거부, 요청 중복/충돌, 정책 변경, 전체 대상 사전 조회, 응답 유실 시 재전송 금지, 재시작 저널 복구, Ingress 헤더 위조 거부를 확인했다.
+- Python 3.13, pytest **37개 통과**. 전체 카탈로그 전달, 모의 공급자 계약(OpenRouter/Azure 단독), 잘못된 확률/응답 거부, 요청 중복/충돌, 정책 변경, 전체 대상 사전 조회, 응답 유실 시 재전송 금지, 재시작 저널 복구, Ingress 헤더 위조 거부를 확인했다.
 - 실제 localhost WebSocket 서버를 사용한 초기 snapshot/event 경합, 연결 종료 후 재접속, 엔티티 추가·삭제 동기화를 확인했다.
 - 잘못된 설정의 startup traceback에 원본 API 키가 포함되지 않는 회귀 검사를 추가했다.
 - Ruff lint/format, actionlint, hadolint, JavaScript 문법 검사, Git diff 공백 검사, staged Git gitleaks 검사를 수행했다.
@@ -27,11 +27,11 @@
 
 설치된 앱의 Ingress에서 “거실불 꺼줘”를 실행하고 거실 조명 두 개에 대한 전송 결과를 확인했다. 성공 표시와 기기 완료를 구분한다. HA 서비스 수락은 물리 기기 완료 보장이 아니다. 실제 스마트 전구·스위치 하드웨어는 사용하지 않았다.
 
-최종 앱 소스 `65e2477`을 HAOS에서 다시 빌드하고, “침실 조명 켜줘”의 실제 상태 변경, 이력 삭제, 한국어 실행 상태, 모바일 화면과 JavaScript 오류 없음을 재확인했다. 인증 없는 Ingress 요청은 401이었다. amd64 검사·빌드와 aarch64 컨테이너 빌드가 [GitHub CI](https://github.com/Kanu-Coffee/fast-home-control/actions/runs/38340304657)에서 통과했다. 후속 문서·캡처 커밋은 앱 소스를 변경하지 않는다.
+앱 소스 `65e2477`을 HAOS에서 다시 빌드하고, “침실 조명 켜줘”의 실제 상태 변경, 이력 삭제, 한국어 실행 상태, 모바일 화면과 JavaScript 오류 없음을 재확인했다. 인증 없는 Ingress 요청은 401이었다. amd64 검사·빌드와 aarch64 컨테이너 빌드가 [GitHub CI](https://github.com/Kanu-Coffee/fast-home-control/actions/runs/38340304657)에서 통과했다. 후속 공급자 설정 오류 격리 변경은 별도로 재검증한다.
 
 ## 실제 모델 평가
 
-사용자가 승인한 임시 OpenRouter 키로 **microsoft/microsoft-decision-1만** 호출했다. 응답 모델 식별자는 최초 API 확인 시 `microsoft/microsoft-decision-1-20261009`였다. Azure 직접 호출은 키가 없어 모의 계약 검증만 수행했다.
+사용자가 승인한 임시 OpenRouter 키로 **microsoft/microsoft-decision-1만** 호출했다. 응답 모델 식별자는 최초 API 확인 시 `microsoft/microsoft-decision-1-20261009`였다. Azure 직접 호출은 키가 없어 모의 계약 검증만 수행했다. 잘못된 Azure endpoint와 정상 OpenRouter 키를 함께 설정한 실제 호출에서 Azure를 격리하고 OpenRouter Decision-1로 정상 판단하는 것도 확인했다.
 
 [고정 15개 명령 결과](live-evaluation.json)는 실제 모델과 실제 HAOS의 가상 엔티티를 연결한 실행기 시험이다. 각 명령 전 대상 상태를 반대로 초기화하고, 예상 대상의 결과 상태와 나머지 기기가 변하지 않았는지 함께 확인했다.
 

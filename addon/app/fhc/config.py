@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError, model_validator
 
@@ -20,12 +21,21 @@ class Options(BaseModel):
     def validate_provider(self):
         if self.provider not in {"auto", "openrouter", "azure"}:
             raise ValueError("invalid provider")
-        if self.azure_endpoint:
-            from urllib.parse import urlsplit
+        return self
 
+    def azure_error(self):
+        parts = (self.azure_api_key.get_secret_value(), self.azure_endpoint, self.azure_deployment)
+        if not any(parts):
+            return None
+        if not all(parts):
+            return "azure_configuration_incomplete"
+        try:
             url = urlsplit(self.azure_endpoint)
+            # Accessing port also validates malformed/non-numeric port strings.
+            _ = url.port
             if (
                 url.scheme != "https"
+                or any(char.isspace() for char in self.azure_endpoint)
                 or not url.hostname
                 or url.username
                 or url.password
@@ -33,14 +43,16 @@ class Options(BaseModel):
                 or url.fragment
                 or url.path not in {"", "/"}
             ):
-                raise ValueError("Azure endpoint must be an HTTPS resource origin")
-        return self
+                return "azure_configuration_invalid"
+        except ValueError:
+            return "azure_configuration_invalid"
+        return None
 
     def configured(self) -> list[str]:
         result = []
         if self.openrouter_api_key.get_secret_value():
             result.append("openrouter")
-        if self.azure_api_key.get_secret_value() and self.azure_endpoint and self.azure_deployment:
+        if self.azure_api_key.get_secret_value() and not self.azure_error():
             result.append("azure")
         if self.provider in result:
             result.remove(self.provider)

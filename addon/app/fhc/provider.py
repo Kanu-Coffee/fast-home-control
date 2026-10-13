@@ -52,6 +52,8 @@ class Provider:
         self.options = options
         self.http = httpx.AsyncClient(timeout=20, trust_env=False)
         self.status = {name: "configured_unverified" for name in options.configured()}
+        if options.azure_error():
+            self.status["azure"] = options.azure_error()
         self.calls = 0
 
     async def decide(self, state, questions):
@@ -100,7 +102,7 @@ class Provider:
                     self.status[name] = last_error
                     continue
                 payload = response.json()
-            except (httpx.HTTPError, ValueError):
+            except (httpx.HTTPError, httpx.InvalidURL, ValueError):
                 last_error = "provider_communication_failed"
                 self.status[name] = last_error
                 continue

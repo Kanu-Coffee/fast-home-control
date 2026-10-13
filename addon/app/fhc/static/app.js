@@ -15,7 +15,7 @@ async function refresh(){
     const [status,domains,history]=await Promise.all([api('status'),api('domains'),api('history')]);latestStatus=status;
     $('version').textContent=status.version;$('top-status').textContent=status.ha_ready?'Home Assistant 연결됨':'Home Assistant 연결 대기';
     $('ha-status').textContent=status.ha_ready?'연결됨':'연결 대기';$('ha-status').className=status.ha_ready?'online':'';
-    for(const name of ['openrouter','azure']){const s=status.providers[name];$(name+'-status').textContent=!s?'설정 필요':s==='connected'?'연결 확인됨':s==='configured_unverified'?'설정됨 · 호출 미확인':'연결 오류';$(name+'-status').className=s==='connected'?'online':'';}
+    for(const name of ['openrouter','azure']){const s=status.providers[name];$(name+'-status').textContent=!s?'설정 필요':s==='connected'?'연결 확인됨':s==='configured_unverified'?'설정됨 · 호출 미확인':s.startsWith('azure_configuration_')?'설정 확인 필요':'연결 오류';$(name+'-status').className=s==='connected'?'online':'';}
     $('readiness').textContent=status.execution_ready?'조명·스위치 ON/OFF 명령을 입력하세요.':!status.ha_ready?'Home Assistant 연결·탐색 대기':'API 연결 정보를 설정하세요.';
     $('sync-status').textContent=status.last_sync?`최근 탐색 ${new Date(status.last_sync*1000).toLocaleString('ko-KR')} · 전체 ${status.entities}개 엔티티`:`진단: ${status.ha_error||'탐색 대기'}`;
     $('rescan').disabled=!status.ha_ready;
