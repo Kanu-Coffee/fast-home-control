@@ -2,6 +2,9 @@ configuration:
   openrouter_api_key:
     name: OpenRouter API Key
     description: 선택 사항. OpenRouter 또는 Azure 중 하나만 설정해도 됩니다.
+  openrouter_model:
+    name: OpenRouter 모델
+    description: 기본값은 microsoft/microsoft-decision-1 입니다.
   azure_api_key:
     name: Azure API Key
     description: Azure 단독 사용이 가능합니다.

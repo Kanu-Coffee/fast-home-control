@@ -65,7 +65,11 @@ class Provider:
                 batch = {key: questions[key] for key in keys[index : index + 8]}
                 context = dict(state)
                 if "details" in context:
-                    context["details"] = [d for d in context["details"] if d["id"] in batch]
+                    context["details"] = [
+                        d
+                        for d in context["details"]
+                        if any(k == d["id"] or k.startswith(d["id"] + "_") for k in batch)
+                    ]
                 answers, name = await self.decide(context, batch)
                 combined.update(answers)
                 used.append(name)
@@ -80,7 +84,7 @@ class Provider:
                 headers = {
                     "Authorization": "Bearer " + self.options.openrouter_api_key.get_secret_value()
                 }
-                model = "microsoft/microsoft-decision-1"
+                model = self.options.openrouter_model or "microsoft/microsoft-decision-1"
             else:
                 url = self.options.azure_endpoint.rstrip("/") + "/providers/microsoft/v1/systemone"
                 headers = {"api-key": self.options.azure_api_key.get_secret_value()}

@@ -42,11 +42,33 @@ class FakeHA:
     async def fresh_state(self, entity_id):
         return copy.deepcopy(self.states[entity_id])
 
-    async def call(self, domain, service, entity_id):
-        self.calls.append((domain, service, entity_id))
+    async def call(self, domain, service, entity_id, service_data=None, return_response=False):
+        if service_data is not None:
+            self.calls.append((domain, service, entity_id, service_data))
+        else:
+            self.calls.append((domain, service, entity_id))
         if self.timeout:
             raise HAError("lost_ack")
-        self.states[entity_id]["state"] = "on" if service == "turn_on" else "off"
+        state = self.states[entity_id]
+        if domain == "climate":
+            if service == "set_hvac_mode":
+                state["state"] = service_data["hvac_mode"]
+            elif service == "turn_off":
+                state["state"] = "off"
+            elif service == "turn_on":
+                state["state"] = "cool"
+            elif service == "set_temperature":
+                state["attributes"].update(service_data)
+                if "hvac_mode" in service_data:
+                    state["state"] = service_data["hvac_mode"]
+        else:
+            state["state"] = "on" if service == "turn_on" else "off"
+            if service_data:
+                for k, v in service_data.items():
+                    if k == "brightness_pct":
+                        state["attributes"]["brightness"] = round(v / 100 * 255)
+                    elif k != "brightness_step_pct":
+                        state["attributes"][k] = v
         return {}
 
 
@@ -69,12 +91,30 @@ class ScriptedProvider:
                 )
                 answers[key] = {"type": "noul", "noul": 0.99 if value else 0.01}
             else:
-                selected = self.targets.get(names[key], "none")
+                ref, prop = key.split("_", 1)
+                target = self.targets.get(names[ref], "none")
+                if isinstance(target, dict):
+                    selected = target.get(prop, "none")
+                else:
+                    selected = "none"
+                    if prop == "power" and target in {"turn_on", "turn_off"}:
+                        selected = target
+                    elif prop == "hvac" and target.startswith("mode_"):
+                        selected = target.removeprefix("mode_")
+                    elif prop == "temperature" and target == "set_temp":
+                        selected = "v0"
+                    elif prop == "color" and target == "set_color":
+                        selected = "red"
+                    elif prop == "brightness" and target in {"dim_down", "dim_up"}:
+                        selected = target
                 answers[key] = {
                     "type": "choice",
                     "choice": selected,
                     "probabilities": {
-                        name: 0.99 if name == selected else 0.005 for name in question["criteria"]
+                        name: 0.99
+                        if name == selected
+                        else 0.01 / max(1, len(question["criteria"]) - 1)
+                        for name in question["criteria"]
                     },
                 }
         return answers, "scripted"

@@ -25,7 +25,10 @@ class HA:
             self.rest_url = os.environ.get("FHC_HA_REST", self.rest_url)
         self.states, self.services = {}, {}
         self.registry, self.devices, self.areas = [], [], []
+        self.renames = {}
+        self.periodic_wakeup = asyncio.Event()
         self.version = 0
+        self.temperature_unit = None
         self.ready = False
         self.error = "not_connected"
         self.last_sync = None
@@ -75,8 +78,22 @@ class HA:
             entity_id = data["entity_id"]
             if new:
                 previous = self.states.get(entity_id)
-                metadata = ("friendly_name", "supported_features")
-                if entity_id.split(".")[0] in {"light", "switch"} and (
+                domain = entity_id.split(".")[0]
+                metadata = (
+                    "friendly_name",
+                    "supported_features",
+                    "hvac_modes",
+                    "min_temp",
+                    "max_temp",
+                    "target_temp_step",
+                    "supported_color_modes",
+                    "entity_id",
+                    "temperature_unit",
+                    "effect_list",
+                    "min_color_temp_kelvin",
+                    "max_color_temp_kelvin",
+                )
+                if domain in {"light", "switch", "climate"} and (
                     not previous
                     or any(
                         previous.get("attributes", {}).get(key)
@@ -87,8 +104,9 @@ class HA:
                     self.version += 1
                 self.states[entity_id] = new
             else:
+                domain = entity_id.split(".")[0]
                 self.states.pop(entity_id, None)
-                if entity_id.split(".")[0] in {"light", "switch"}:
+                if domain in {"light", "switch", "climate"}:
                     self.version += 1
         elif kind in {
             "entity_registry_updated",
@@ -96,7 +114,10 @@ class HA:
             "area_registry_updated",
             "service_registered",
             "service_removed",
+            "core_config_updated",
         }:
+            if kind == "entity_registry_updated" and data.get("changes", {}).get("entity_id"):
+                self.renames[data["changes"]["entity_id"]] = data["entity_id"]
             self.ready = False
             self.version += 1
             if self.refresh_task is None or self.refresh_task.done():
@@ -117,16 +138,18 @@ class HA:
             self.ready = False
             self.events_during_sync = []
             try:
-                states, services, registry, devices, areas = await asyncio.gather(
+                states, services, registry, devices, areas, config = await asyncio.gather(
                     self.request({"type": "get_states"}),
                     self.request({"type": "get_services"}),
                     self.request({"type": "config/entity_registry/list"}),
                     self.request({"type": "config/device_registry/list"}),
                     self.request({"type": "config/area_registry/list"}),
+                    self.request({"type": "get_config"}),
                 )
                 buffered = self.events_during_sync
                 self.states = {x["entity_id"]: x for x in states}
                 self.services, self.registry = services, registry
+                self.temperature_unit = (config or {}).get("unit_system", {}).get("temperature")
                 self.devices, self.areas = devices, areas
                 metadata_changed = False
                 for event in buffered:
@@ -155,8 +178,11 @@ class HA:
 
     async def periodic(self):
         while True:
-            await asyncio.sleep(self.rescan_hours * 3600)
-            await self.rescan()
+            try:
+                await asyncio.wait_for(self.periodic_wakeup.wait(), self.rescan_hours * 3600)
+                self.periodic_wakeup.clear()
+            except TimeoutError:
+                await self.rescan()
 
     async def run(self):
         delay = 1
@@ -184,6 +210,7 @@ class HA:
                         "area_registry_updated",
                         "service_registered",
                         "service_removed",
+                        "core_config_updated",
                     ]:
                         await self.request({"type": "subscribe_events", "event_type": event})
                     await self.rescan()
@@ -214,6 +241,21 @@ class HA:
             await asyncio.sleep(delay + random.random())
             delay = min(delay * 2, 30)
 
+    async def is_admin(self, user_id):
+        if not user_id or not self.ready:
+            return False
+        try:
+            users = await self.request({"type": "config/auth/list"})
+            return any(
+                u.get("id") == user_id
+                and u.get("is_active") is True
+                and not u.get("system_generated")
+                and (u.get("is_owner") or "system-admin" in u.get("group_ids", []))
+                for u in users
+            )
+        except (HAError, TimeoutError, TypeError):
+            return False
+
     async def fresh_state(self, entity_id):
         try:
             response = await self.http.get(
@@ -225,16 +267,19 @@ class HA:
         except (httpx.HTTPError, ValueError) as exc:
             raise HAError("state_refresh_failed") from exc
 
-    async def call(self, domain, service, entity_id):
+    async def call(self, domain, service, entity_id, service_data=None, return_response=False):
         # Domain and service are supplied exclusively by the validated adapter.
-        return await self.request(
-            {
-                "type": "call_service",
-                "domain": domain,
-                "service": service,
-                "target": {"entity_id": entity_id},
-            }
-        )
+        payload = {
+            "type": "call_service",
+            "domain": domain,
+            "service": service,
+            "target": {"entity_id": entity_id},
+        }
+        if service_data:
+            payload["service_data"] = service_data
+        if return_response:
+            payload["return_response"] = True
+        return await self.request(payload)
 
     async def close(self):
         await self.http.aclose()

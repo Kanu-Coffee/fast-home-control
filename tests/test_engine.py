@@ -103,3 +103,76 @@ async def test_already_off_is_noop(ha, store):
     assert result["status"] == "succeeded"
     assert result["actions"][0]["status"] == "already_in_state"
     assert not ha.calls
+
+
+async def test_climate_fan_only_and_temperature(ha, store):
+    ha.services["climate"] = {
+        "set_hvac_mode": {},
+        "set_temperature": {},
+        "turn_on": {},
+        "turn_off": {},
+    }
+    ha.states["climate.living"] = {
+        "entity_id": "climate.living",
+        "state": "off",
+        "attributes": {
+            "friendly_name": "거실 에어컨",
+            "hvac_modes": ["off", "cool", "fan_only"],
+            "min_temp": 18,
+            "supported_features": 385,
+            "temperature_unit": "°C",
+            "target_temp_step": 1,
+            "max_temp": 30,
+            "temperature": 26,
+        },
+    }
+    ha.registry.append({"entity_id": "climate.living", "area_id": "living"})
+
+    # 1. 송풍 모드
+    provider = ScriptedProvider({"거실 에어컨": "mode_fan_only"})
+    result = await execute(ha, store, provider, "에어컨 켜줘 송풍모드")
+    assert result["status"] == "succeeded"
+    assert ha.calls == [("climate", "set_hvac_mode", "climate.living", {"hvac_mode": "fan_only"})]
+
+    # 2. 온도 설정
+    ha.calls.clear()
+    provider = ScriptedProvider({"거실 에어컨": "set_temp"})
+    result = await execute(ha, store, provider, "거실 에어컨 25도로")
+    assert result["status"] == "succeeded"
+    assert ha.calls == [("climate", "set_temperature", "climate.living", {"temperature": 25.0})]
+
+    # 3. 범위 밖 온도
+    ha.calls.clear()
+    provider = ScriptedProvider({"거실 에어컨": "set_temp"})
+    result = await execute(ha, store, provider, "거실 에어컨 50도로")
+    assert result["status"] == "rejected"
+    assert result["reason"] == "temperature_out_of_range"
+    assert not ha.calls
+
+
+async def test_light_color_and_brightness_not_noop_when_on(ha, store):
+    ha.states["light.living"]["attributes"]["supported_color_modes"] = ["rgb", "brightness"]
+    ha.states["light.living"]["attributes"]["brightness"] = 200
+    ha.states["light.living"]["state"] = "on"
+
+    # 1. 색상 변경 (on 상태여도 no-op이 아님)
+    provider = ScriptedProvider({"천장등": "set_color"})
+    result = await execute(ha, store, provider, "거실 조명 빨간색으로")
+    assert result["status"] == "succeeded"
+    assert ha.calls == [("light", "turn_on", "light.living", {"rgb_color": [255, 0, 0]})]
+
+    # 2. 조금 어둡게 (on 상태여도 no-op이 아님)
+    ha.calls.clear()
+    provider = ScriptedProvider({"천장등": "dim_down"})
+    result = await execute(ha, store, provider, "조명 조금 어둡게")
+    assert result["status"] == "succeeded"
+    assert ha.calls == [("light", "turn_on", "light.living", {"brightness_step_pct": -10})]
+
+
+async def test_entity_policy_exclusion(ha, store):
+    store.set_entity_policy("light.living", False)
+    provider = ScriptedProvider()
+    _ = await execute(ha, store, provider, "거실불 꺼줘")
+    catalog = provider.inputs[0][0]["catalog"]
+    entity_ids = [e["name"] for group in catalog for e in group["entities"]]
+    assert "천장등" not in entity_ids

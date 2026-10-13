@@ -9,11 +9,11 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
 from . import VERSION
 from .catalog import SUPPORTED, Catalog
-from .config import load_options
+from .config import load_options, save_options
 from .engine import Engine
 from .ha import HA
 from .provider import Provider
@@ -25,9 +25,33 @@ class Command(BaseModel):
     request_id: uuid.UUID
 
 
+class EntityOverride(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: StrictBool
+
+
 class Policy(BaseModel):
-    light: bool
-    switch: bool
+    light: bool | None = None
+    switch: bool | None = None
+    climate: bool | None = None
+    domains: dict[str, bool] | None = None
+    entities: dict[str, EntityOverride] | None = None
+    entity_id: str | None = None
+    entity_enabled: StrictBool | None = None
+
+
+class ConfigUpdate(BaseModel):
+    openrouter_api_key: str | None = None
+    delete_openrouter_api_key: bool = False
+    openrouter_model: str | None = None
+    azure_api_key: str | None = None
+    delete_azure_api_key: bool = False
+    azure_endpoint: str | None = None
+    azure_deployment: str | None = None
+    provider: str | None = None
+    rescan_hours: int | None = None
+    history_days: int | None = None
+    history_limit: int | None = None
 
 
 @asynccontextmanager
@@ -40,6 +64,7 @@ async def lifespan(app):
     app.state.ha, app.state.provider, app.state.store = ha, provider, store
     app.state.engine = Engine(ha, provider, store)
     app.state.tasks = set()
+    app.state.mutation_lock = asyncio.Lock()
     task = asyncio.create_task(ha.run())
     try:
         yield
@@ -83,7 +108,22 @@ async def access_control(request: Request, call_next):
             or request.headers.get("sec-fetch-site") == "cross-site"
         ):
             return JSONResponse({"error": "request_origin_rejected"}, status_code=403)
-    response = await call_next(request)
+    management = request.url.path in {
+        "/api/config",
+        "/api/policy",
+        "/api/domains",
+        "/api/rescan",
+        "/api/history",
+    }
+    if management and not standalone:
+        user_id = request.headers.get("x-remote-user-id", "")
+        if not await app.state.ha.is_admin(user_id):
+            return JSONResponse({"error": "admin_required"}, status_code=403)
+    if request.method not in {"GET", "HEAD"} and request.url.path.startswith("/api/"):
+        async with app.state.mutation_lock:
+            response = await call_next(request)
+    else:
+        response = await call_next(request)
     response.headers["Cache-Control"] = "no-store"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Content-Security-Policy"] = (
@@ -125,34 +165,108 @@ async def status():
     }
 
 
+@app.get("/api/config")
+async def get_config():
+    return app.state.provider.options.public_dict()
+
+
+@app.post("/api/config")
+async def update_config(body: ConfigUpdate):
+    if any(not job.done() for job in app.state.tasks):
+        raise HTTPException(409, "execution_in_progress")
+    try:
+        new_options = await save_options(
+            body.model_dump(exclude_unset=True), app.state.provider.options
+        )
+    except Exception as exc:
+        raise HTTPException(400, "options_save_failed") from exc
+    app.state.ha.rescan_hours = new_options.rescan_hours
+    app.state.ha.periodic_wakeup.set()
+    app.state.store.days = new_options.history_days
+    app.state.store.limit = new_options.history_limit
+    app.state.provider.options = new_options
+    app.state.provider.status = {name: "configured_unverified" for name in new_options.configured()}
+    if new_options.azure_error():
+        app.state.provider.status["azure"] = new_options.azure_error()
+    return new_options.public_dict()
+
+
+@app.get("/api/shortcuts")
+async def shortcuts():
+    return app.state.store.recent_shortcuts(limit=6)
+
+
 @app.get("/api/domains")
 async def domains():
     ha, store = app.state.ha, app.state.store
-    policy = store.policy()
+    store.reconcile_registry(ha)
+    policy_dict = store.policy()
     catalog = Catalog(ha, {domain: True for domain in SUPPORTED})
     discovered = {entity_id.split(".", 1)[0] for entity_id in ha.states}
-    return [
-        {
-            "domain": domain,
-            "label": SUPPORTED.get(domain, domain),
-            "supported": domain in SUPPORTED,
-            "enabled": policy.get(domain, False),
-            "count": sum(e.domain == domain for e in catalog.entities.values()),
-        }
-        for domain in sorted(discovered | set(SUPPORTED))
-    ]
+    res = []
+    for domain in sorted(discovered | set(SUPPORTED)):
+        domain_entities = [
+            {
+                "entity_id": e.entity_id,
+                "name": e.name,
+                "area": e.area,
+                "enabled": policy_dict.is_allowed(
+                    domain,
+                    e.entity_id,
+                    next((r.get("id") for r in ha.registry if r["entity_id"] == e.entity_id), None),
+                ),
+            }
+            for e in catalog.entities.values()
+            if e.domain == domain
+        ]
+        res.append(
+            {
+                "domain": domain,
+                "label": SUPPORTED.get(domain, domain),
+                "supported": domain in SUPPORTED,
+                "enabled": policy_dict.is_domain_allowed(domain),
+                "count": len(domain_entities),
+                "entities": domain_entities,
+            }
+        )
+    return res
+
+
+@app.get("/api/policy")
+async def get_policy():
+    return app.state.store.policy()
 
 
 @app.put("/api/policy")
-async def policy(body: Policy):
-    if any(
-        app.state.store.get(job.get_name())[1]["status"] == "executing"
-        for job in app.state.tasks
-        if not job.done()
-    ):
+async def update_policy(body: Policy):
+    if any(not job.done() for job in app.state.tasks):
         raise HTTPException(409, "execution_in_progress")
-    app.state.store.set_policy(body.model_dump())
-    return {"ok": True}
+
+    curr = app.state.store.policy()
+    domains = dict(curr.domains)
+    entities = dict(curr.entities)
+
+    if body.domains:
+        domains.update(body.domains)
+    for dom in ["light", "switch", "climate"]:
+        val = getattr(body, dom, None)
+        if val is not None:
+            domains[dom] = val
+    if body.entities:
+        for eid, override in body.entities.items():
+            identity = next(
+                (r.get("id") for r in app.state.ha.registry if r["entity_id"] == eid), None
+            )
+            entities[eid] = {**override.model_dump(), "identity": identity}
+    if body.entity_id is not None and body.entity_enabled is not None:
+        identity = next(
+            (r.get("id") for r in app.state.ha.registry if r["entity_id"] == body.entity_id), None
+        )
+        entities[body.entity_id] = {"enabled": body.entity_enabled, "identity": identity}
+
+    new_pol = {"domains": domains, "entities": entities}
+    app.state.store.set_policy(new_pol)
+    return {"ok": True, "policy": new_pol}
 
 
 @app.post("/api/rescan")
