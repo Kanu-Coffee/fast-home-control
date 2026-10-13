@@ -148,10 +148,8 @@ def temperature(value, f):
     lo, hi, step = f.get("min_temp"), f.get("max_temp"), f.get("target_temp_step")
     if lo is None or hi is None or not lo <= v <= hi:
         raise DecisionError("temperature_out_of_range")
-    if (
-        step is None
-        or step <= 0
-        or not math.isclose((v - lo) / step, round((v - lo) / step), abs_tol=1e-7)
+    if step is not None and (
+        step <= 0 or not math.isclose((v - lo) / step, round((v - lo) / step), abs_tol=1e-7)
     ):
         raise DecisionError("temperature_step_invalid")
     return round(v, 8)
