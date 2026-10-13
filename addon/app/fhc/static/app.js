@@ -261,7 +261,12 @@ async function loadDomains() {
       return;
     }
 
-    for (const d of domains) {
+    const query = $('entity-search').value.trim().toLowerCase();
+    for (const discovered of domains) {
+      const matching = (discovered.entities || []).filter((ent) =>
+        !query || `${ent.name} ${ent.area} ${ent.entity_id}`.toLowerCase().includes(query));
+      if (query && !matching.length) continue;
+      const d = { ...discovered, entities: matching };
       const item = node('div', undefined, 'domain-item');
       const summary = node('div', undefined, 'domain-summary');
 
@@ -272,7 +277,7 @@ async function loadDomains() {
 
       let accordion = null;
       if (d.entities && d.entities.length > 0) {
-        const toggleListBtn = node('button', '기기 목록', 'toggle-entities-btn text-button');
+        const toggleListBtn = node('button', query ? '목록 닫기' : '기기 목록', 'toggle-entities-btn text-button');
         toggleListBtn.type = 'button';
         toggleListBtn.addEventListener('click', () => {
           if (accordion) {
@@ -310,10 +315,8 @@ async function loadDomains() {
 
       if (d.entities && d.entities.length > 0) {
         accordion = node('div', undefined, 'entities-accordion');
-        accordion.hidden = true;
+        accordion.hidden = !query;
         for (const ent of d.entities) {
-          const query = $('entity-search').value.trim().toLowerCase();
-          if (query && !`${ent.name} ${ent.area} ${ent.entity_id}`.toLowerCase().includes(query)) continue;
           const row = node('div', undefined, 'entity-row');
           const entName = node('span', `${ent.name} (${ent.area || '영역 미지정'})`);
           const entToggle = node('button', undefined, 'toggle');
@@ -341,6 +344,7 @@ async function loadDomains() {
 
       container.append(item);
     }
+    if (!container.children.length) container.append(node('p', '검색 결과가 없습니다.', 'muted empty'));
   } catch {
     // ignore
   }

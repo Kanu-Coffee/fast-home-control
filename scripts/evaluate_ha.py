@@ -34,7 +34,7 @@ CASES = [
     ("집에 있는 조명 전부 꺼줘", LIGHTS, "turn_off"),
     ("거실 불 끄고 거실 콘센트 켜줘", LIVING | {SWITCH}, "mixed"),
     ("거실 불 켜져 있으면 꺼줘", set(), None),
-    ("거실 불 조금 어둡게 해줘", set(), None),
+    ("거실 불 끄고 10분 뒤 다시 켜줘", set(), None),
     ("아무거나 꺼줘", set(), None),
     ("불 꺼줘", set(), None),
     ("거실 불 꺼줘 그리고 현관문 열어줘", set(), None),

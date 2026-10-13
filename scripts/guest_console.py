@@ -14,6 +14,20 @@ def run(command, timeout=10):
     with socket.socket(socket.AF_UNIX) as connection:
         connection.settimeout(0.5)
         connection.connect(str(path))
+        # A timed-out HA CLI spinner may still own stdin. Never feed a new command
+        # into it: wait for the root prompt first and report a busy console.
+        connection.sendall(b"\n")
+        ready_deadline = time.monotonic() + 5
+        ready = b""
+        while time.monotonic() < ready_deadline:
+            try:
+                ready += connection.recv(65536)
+                if ready.endswith(b"# "):
+                    break
+            except TimeoutError:
+                pass
+        else:
+            raise RuntimeError("test_console_busy_no_command_sent")
         connection.sendall(command.encode() + b"\n")
         deadline = time.monotonic() + timeout
         data = b""
@@ -27,6 +41,8 @@ def run(command, timeout=10):
                     break
             except TimeoutError:
                 pass
+        if not data.endswith(b"# "):
+            raise RuntimeError("test_console_command_still_running; inspect state before retry")
         return data.decode(errors="replace")
 
 

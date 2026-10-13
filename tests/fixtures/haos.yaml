@@ -1,0 +1,27 @@
+# Disposable test VM only. Installation users never need this fixture.
+default_config:
+demo:
+input_boolean:
+  fhc_fixture_onoff:
+    name: FHC fixture power
+    initial: false
+light:
+  - platform: group
+    name: FHC 테스트 전체등
+    unique_id: fhc_fixture_group
+    entities:
+      - light.ceiling_lights
+      - light.bed_light
+template:
+  - light:
+      - name: FHC 단순등
+        unique_id: fhc_fixture_simple
+        state: "{{ is_state('input_boolean.fhc_fixture_onoff', 'on') }}"
+        turn_on:
+          action: input_boolean.turn_on
+          target:
+            entity_id: input_boolean.fhc_fixture_onoff
+        turn_off:
+          action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.fhc_fixture_onoff

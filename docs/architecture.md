@@ -5,7 +5,7 @@
 Fast Home Control은 대화 비서가 아니라 HAOS에서 작동하는 자연어 리모컨이다. API 공급자 정보 외에 HA URL, Long-Lived Access Token, 기기 등록, 사용자 YAML을 요구하지 않는다.
 
 - **0.1.0-dev.1:** 조명·스위치 켜기/끄기 MVP.
-- **0.2.0-dev.4 (단계 A):** 기본 옵션 노출, 사용자 리모컨 / 관리자 설정 분리, 최근 성공 명령 원클릭 카드, OpenRouter 모델 선택, 공식 도메인 확장(climate 송풍/냉방/난방 모드 및 온도 설정, light 밝기·색상 설정), 도메인 및 엔티티 세부 제어 정책, SQLite user_version v3 마이그레이션.
+- **0.2.0-dev.5 (단계 A):** 기본 옵션 노출, 사용자 리모컨 / 관리자 설정 분리, 최근 성공 명령 원클릭 카드, OpenRouter 모델 선택, 공식 도메인 확장(climate 송풍/냉방/난방 모드 및 온도 설정, light 밝기·색상 설정), 도메인 및 엔티티 세부 제어 정책, SQLite user_version v3 마이그레이션.
 
 ## Decision-1의 실제 계약
 
