@@ -1,5 +1,18 @@
 # 0.2.0-dev.10 — UI/UX 편의성 개선, 동작 교정 및 공식 브랜드 아이콘 통일 (2026-10-14)
-- 자동 테스트 116개 통과. Ruff check/format (21 files), JS 구문 (`node --check`), `git diff --check`, `actionlint` (.github/workflows/check.yml), `hadolint` (addon/Dockerfile) 통과.
+- **원격 GitHub Actions CI 검증 (Run 38562768213, Commit `a4d89c6`)**:
+  - `test` 작업: Ubuntu runner에서 Chromium 설치(`playwright install --with-deps chromium`), Ruff check/format (21 files), 116개 테스트 통과, `requirements.txt` 동기화 검증, amd64 Dockerfile 빌드 완료.
+  - `arm-build` 작업: QEMU+Buildx 기반 linux/arm64 멀티아키텍처 컨테이너 빌드 성공.
+- **프로젝트 전용 HAOS (Core 2026.10.1) 실기동 및 설치형 애드온 검증**:
+  - 공식 GitHub `#dev` 저장소 reload (`ha store reload`) 후 Supervisor를 통해 **dev.9→dev.10(0.2.0-dev.10)** 소스 빌드 및 업그레이드·기동 확인 (`version=0.2.0-dev.10`, `state=started`, `icon=true`, `logo=true`).
+  - Ingress 관리자 세션: `api/status`에서 `version: 0.2.0-dev.10`, `ha_ready: true`, `execution_ready: true` 확인.
+  - **정적 브랜딩 자산 서빙**: Ingress 경로 아래 `static/icon-32.png`, `static/icon-192.png`, `static/icon-512.png`, `static/apple-touch-icon.png` (image/png) 및 `static/favicon.ico` (image/vnd.microsoft.icon) 모두 200 OK 응답 및 올바른 Content-Type 확인.
+  - **실제 Ingress Playwright 세션 검증**:
+    - 데스크톱(1280×800): 헤더 로고 아이콘(24×24px) 정상 노출, 관리자 모드 토글 박스 44×44px 터치 영역 충족. 스크린샷: `real-ingress-desktop.png`.
+    - 모바일(390×844): 가로 넘침 없음(`scrollWidth = clientWidth = 390px`), 최근 명령/리모컨 그리드 정상 배치. 스크린샷: `real-ingress-mobile.png`.
+  - **조명 명령 실행**: Ingress에서 "거실불 꺼줘" 실행 → `status: succeeded`, 거실 조명(천장등/보조등) off, 타 영역(주방등) on 유지 확인.
+  - **정책 연속 저장 및 재시작 보존**: 개별 엔티티 및 도메인 정책 PUT 200 완료 후 Supervisor 애드온 재시작 → 재시작 후 `read_domains: {'switch': false}` 정책 보존 확인 후 기본값 원복.
+  - **진단 내역 내보내기**: `GET /api/history/export` 200 OK, application/zip 무결성 검증, 기본 익명화 시 원문 명령 텍스트 미포함 확인.
+  - 검증 완료 후 테스트 정책 원복, VM 정상 종료(stopped), 자원 증거는 `.local/fix10-install-verification.json` 및 `.local/test-resources.json`에 기록.
 - **UI/UX 개선 및 브라우저 동작 검증 (`tests/test_browser_ui.py`)**:
   - **스위치 정렬 및 터치 영역 (R6)**: `.domain-summary` 및 `.entity-row`에서 제어와 조회 스위치를 각각 독립된 78px 폭의 `.toggle-group`으로 패키징. `.toggle`의 bounding box를 측정하여 가로 44px, 세로 44px의 터치 영역을 확보하고 내부 `::before` 가상 요소로 44×24px 시각 디자인을 유지. 제어 열과 조회 열의 X 좌표가 일치함을 확인.
   - **정책 저장 생명주기 및 경합 방어 (FIX_02 R2, R1)**: 도메인 정책 요청 세대 카운터(`domainsRequestSeq`)를 적용하여 느린 이전 GET 응답이 최신 정책 상태를 덮어쓰지 않도록 폐기. 정책 PUT 실행부터 후속 최신 GET 로드 완료 시점(`finally`)까지 `isPolicySaving = true`를 유지하여 토글 연타나 경합 중 비정상 토글 상태 방지. 특수문자 따옴표/대괄호가 포함된 기기 이름에서도 `[data-entity-id]` 기반으로 포커스를 복원함을 확인.
@@ -7,13 +20,12 @@
   - **OpenRouter 모델 드롭다운 및 직접 입력 초안 보존 (R4)**: `cfg-openrouter-model-select` 네이티브 셀렉트에서 '직접 입력' 선택 후 작성한 초안 문자열(`customModelDraft`)이 후보 프리셋(Microsoft, Jev 1.13)을 오가는 동안 덮어씌워지지 않고 보존됨을 확인. 실제 POST 저장 및 재로드 시 저장값 반영 검증.
   - **상세 실행 기록 변경 감지 및 열람 위치 보존 (FIX_02 R1, R3)**: `/api/history` 50건 렌더링. 진단 지문(fingerprint)에 `providers`, `phase`, `model_trace`, `timings_ms`, `actions`를 포함하여 동일 상태 코드 내 진단 및 공급자 상태 갱신을 누락 없이 감지. 갱신 시 `<details>` 열림 상태와 `<pre>` 내부 스크롤 유지. `getBoundingClientRect()` 기반 컨테이너-자식 상대 좌표 계산으로 선행 행 확장 또는 상단 새 항목 추가 시에도 뷰포트 내 기준 카드의 상대 위치 안정 유지 및 `focus({ preventScroll: true })` 적용.
   - **실제 명령 실패 처리 및 대기 중 입력 보존 (Section 3 & 4)**: `page.evaluate()` 편법 없이 실제 route hold와 사용자 타이핑 상호작용으로 대기 중 입력 문장 보존 검증. 실패 시(503) 오류 피드백 노출 및 사용자가 새로 입력 중이지 않은 경우에만 원래 명령문 자동 복구 확인.
-  - **모바일 뷰포트**: 320/360/390/430px 모바일 뷰포트에서 가로 스크롤 넘침 없음(`scrollWidth <= clientWidth`) 및 바로가기 2열 그리드 배치 확인.
 - **브랜드 자산**:
   - `image-generator` 원본 기반 1024×1024 마스터 아이콘과 파생 자산(`docs/branding/master-icon.png`, `docs/branding/social-preview.png`, `addon/icon.png`, `addon/logo.png`, `addon/app/fhc/static/` 파비콘 및 PWA 아이콘) 배치.
-  - 헤더 이미지 및 파비콘 링크의 로컬 200 OK 응답 확인.
+  - HA 애드온 스토어 icon/logo 및 Ingress 헤더 이미지, 파비콘 200 OK 응답 확인.
 - **검증 한계 및 경계**:
-  - 본 검증은 로컬 Playwright Chromium 및 mock HA(`FakeHA`) 환경에서 수행되었으며, 실제 운영 Home Assistant 및 실제 유료 모델 API 호출은 포함하지 않음.
-  - Ingress 경로 프록시 하에서의 실제 터치스크린 조작, 애드온 스토어 실제 렌더링, GitHub 웹 UI의 social preview 반영은 추후 실제 환경 배포 시 확인 필요.
+  - 본 검증은 프로젝트 전용 가상 HAOS 및 로컬/CI 테스트 환경에서 수행되었으며, 실제 운영 Home Assistant 및 실제 유료 모델 API 호출은 포함하지 않음.
+  - GitHub 저장소 웹 설정(Settings -> Social preview)은 GitHub UI를 통한 수동 업로드가 필요하며 `docs/branding/social-preview.png` 파일로 제공됨. Home Assistant 좌측 사이드바 아이콘은 HA Supervisor의 MDI 아이콘 제약(`icon: mdi:home-automation`)이 유지됨.
 
 # 0.2.0-dev.9 — FIX_08 단위 모델 응답 검증 보정 및 수치 정정 (2026-10-14)
 
