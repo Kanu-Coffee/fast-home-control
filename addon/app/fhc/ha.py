@@ -29,6 +29,7 @@ class HA:
         self.periodic_wakeup = asyncio.Event()
         self.version = 0
         self.temperature_unit = None
+        self.time_zone = None
         self.ready = False
         self.error = "not_connected"
         self.last_sync = None
@@ -150,6 +151,7 @@ class HA:
                 self.states = {x["entity_id"]: x for x in states}
                 self.services, self.registry = services, registry
                 self.temperature_unit = (config or {}).get("unit_system", {}).get("temperature")
+                self.time_zone = (config or {}).get("time_zone")
                 self.devices, self.areas = devices, areas
                 metadata_changed = False
                 for event in buffered:

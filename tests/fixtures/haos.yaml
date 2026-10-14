@@ -25,3 +25,13 @@ template:
           action: input_boolean.turn_off
           target:
             entity_id: input_boolean.fhc_fixture_onoff
+# FIX_06 fixture helpers (VM only). local_calendar는 YAML platform이 제거되어
+# Settings→Devices에서 config entry로 생성해야 한다(verify_live_bc.py가 flow API로 재생성).
+input_datetime:
+  fhc_wake:
+    name: FHC 기상 시각
+    has_time: true
+input_text:
+  fhc_secret:
+    name: FHC 기록
+    mode: password

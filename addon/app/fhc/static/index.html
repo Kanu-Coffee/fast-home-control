@@ -155,7 +155,11 @@
       <section class="panel history-panel">
         <div class="section-head">
           <h2>상세 실행 기록</h2>
-          <button id="clear-history" class="text-button" type="button">이력 삭제</button>
+          <div class="history-actions">
+            <label class="export-opt"><input type="checkbox" id="export-include-text"> 명령 원문·기기명 포함</label>
+            <button id="download-logs" class="outline-btn" type="button">진단 로그 다운로드</button>
+            <button id="clear-history" class="text-button" type="button">이력 삭제</button>
+          </div>
         </div>
         <div id="history" class="history-list">
           <p class="muted empty">아직 실행 내역이 없습니다.</p>
@@ -164,6 +168,6 @@
     </section>
   </main>
 
-  <footer>Fast Home Control Dev · <span id="version">0.2.0-dev.6</span></footer>
+  <footer>Fast Home Control Dev · <span id="version">0.2.0-dev.8</span></footer>
 </body>
 </html>

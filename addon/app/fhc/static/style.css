@@ -558,6 +558,42 @@ select {
   text-decoration: underline;
 }
 
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.export-opt {
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.outline-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.outline-btn:hover {
+  background: var(--surface-alt);
+  border-color: #cbd5e1;
+}
+
+.outline-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .muted {
   color: var(--muted);
 }
@@ -599,3 +635,9 @@ footer {
 
 .diagnostic-json { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
 .input-with-status { flex-wrap: wrap; }
+
+.toggle-caption {
+  font-size: 0.72rem;
+  color: var(--muted, #8a8f98);
+  margin-left: 4px;
+}

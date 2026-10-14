@@ -1,5 +1,6 @@
 import json
 import math
+import time
 
 import httpx
 
@@ -94,6 +95,7 @@ class Provider:
             # Conservative local request budget, not an assumed provider token guarantee.
             if len(json.dumps(body, ensure_ascii=False).encode()) > 40000 or len(questions) > 64:
                 raise DecisionError("catalog_too_large")
+            tick = time.perf_counter()
             try:
                 self.calls += 1
                 response = await self.http.post(url, headers=headers, json=body)
@@ -105,11 +107,34 @@ class Provider:
                         429: "provider_rate_limited",
                     }.get(response.status_code, f"provider_http_{response.status_code}")
                     self.status[name] = last_error
+                    self.trace.append(
+                        {
+                            "provider": name,
+                            "requested_model": model,
+                            "returned_model": None,
+                            "error": last_error,
+                            "http_code": response.status_code,
+                            "elapsed_ms": round((time.perf_counter() - tick) * 1000),
+                            "questions": len(questions),
+                        }
+                    )
+                    self.trace = self.trace[-1000:]
                     continue
                 payload = response.json()
             except (httpx.HTTPError, httpx.InvalidURL, ValueError):
                 last_error = "provider_communication_failed"
                 self.status[name] = last_error
+                self.trace.append(
+                    {
+                        "provider": name,
+                        "requested_model": model,
+                        "returned_model": None,
+                        "error": last_error,
+                        "elapsed_ms": round((time.perf_counter() - tick) * 1000),
+                        "questions": len(questions),
+                    }
+                )
+                self.trace = self.trace[-1000:]
                 continue
             answers = payload.get("answers") if isinstance(payload, dict) else None
             if not isinstance(answers, dict) or set(answers) != set(questions):
@@ -122,6 +147,8 @@ class Provider:
                     "provider": name,
                     "requested_model": model,
                     "returned_model": returned[:200] if isinstance(returned, str) else None,
+                    "elapsed_ms": round((time.perf_counter() - tick) * 1000),
+                    "questions": len(questions),
                 }
             )
             # Bounded process diagnostics; request traces are copied into the journal.

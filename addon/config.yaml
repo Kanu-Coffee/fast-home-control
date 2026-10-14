@@ -1,6 +1,6 @@
 name: Fast Home Control Dev
 slug: fast_home_control_dev
-version: 0.2.0-dev.6
+version: 0.2.0-dev.8
 stage: experimental
 description: Zero-config natural-language control for lights, switches, and climate using Microsoft Decision-1
 url: https://github.com/Kanu-Coffee/fast-home-control

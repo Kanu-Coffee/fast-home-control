@@ -3,33 +3,75 @@ import sqlite3
 import time
 from pathlib import Path
 
+# Presence/schedule domains are never read-allowed by default; they need explicit opt-in.
+PERSONAL_READ_DOMAINS = frozenset({"person", "device_tracker", "zone", "calendar", "todo"})
+DEFAULT_READ_DOMAINS = (
+    frozenset({"sensor", "binary_sensor", "weather", "event", "sun", "update"})
+    - PERSONAL_READ_DOMAINS
+)
+
 
 class PolicyDict(dict):
     @property
-    def domains(self) -> dict[str, bool]:
-        return self.get("domains", {})
+    def domains(self):
+        return self.get("domains") or {}
 
     @property
-    def entities(self) -> dict[str, dict]:
-        return self.get("entities", {})
+    def read_domains(self):
+        return self.get("read_domains") or {}
 
-    def is_domain_allowed(self, domain: str) -> bool:
+    @property
+    def entities(self):
+        return self.get("entities") or {}
+
+    def is_domain_allowed(self, domain: str, access: str = "write") -> bool:
+        if access == "read":
+            if domain in self.read_domains:
+                return bool(self.read_domains[domain])
+            if domain in self.domains:
+                return bool(self.domains[domain])
+            if domain in PERSONAL_READ_DOMAINS:
+                return False  # explicit opt-in only; never auto-expanded by updates
+            if domain in DEFAULT_READ_DOMAINS:
+                return True
+            return False
         return bool(self.domains.get(domain, False))
 
-    def is_allowed(self, domain: str, entity_id: str | None = None, identity=None) -> bool:
-        if not self.is_domain_allowed(domain):
+    def is_allowed(
+        self,
+        domain: str,
+        entity_id: str | None = None,
+        identity=None,
+        access: str = "write",
+    ) -> bool:
+        if not self.is_domain_allowed(domain, access=access):
             return False
         if entity_id and entity_id in self.entities:
             entry = self.entities[entity_id]
             if entry.get("identity") and entry["identity"] != identity:
                 return False  # Reused ID is quarantined until reconciliation/admin decision.
-            return entry.get("enabled", True)
+            if access == "read":
+                if "read_enabled" in entry:
+                    return bool(entry["read_enabled"])
+                return bool(entry.get("enabled", True))
+            return bool(entry.get("enabled", True))
         return True
 
     def get(self, key, default=None):
         if key in self:
-            return super().get(key, default)
+            return dict.get(self, key, default)
         return self.domains.get(key, default)
+
+
+def as_policy_dict(policy) -> PolicyDict:
+    """Normalize bare {domain: bool} mappings and plain dicts into one PolicyDict."""
+    if isinstance(policy, PolicyDict):
+        return policy
+    raw = dict(policy)
+    if {"domains", "read_domains", "entities"} & raw.keys():
+        return PolicyDict(raw)
+    domains = {k: v for k, v in raw.items() if isinstance(v, bool)}
+    return PolicyDict({**raw, "domains": domains})
 
 
 class Store:
@@ -63,6 +105,7 @@ class Store:
                     "CREATE TABLE IF NOT EXISTS requests (id TEXT PRIMARY KEY, text TEXT NOT NULL, created REAL NOT NULL, result TEXT NOT NULL)"
                 )
                 row = self.db.execute("SELECT value FROM settings WHERE key='policy'").fetchone()
+                raw: dict
                 if row:
                     raw = json.loads(row[0])
                     if not isinstance(raw, dict):
@@ -72,8 +115,10 @@ class Store:
                 else:
                     raw = {
                         "domains": {"light": True, "switch": True, "climate": not bool(existing)},
+                        "read_domains": {},
                         "entities": {},
                     }
+                raw.setdefault("read_domains", {})
                 self._validate_policy(raw)
                 raw.setdefault("revision", 0)
                 self.db.execute(
@@ -84,16 +129,40 @@ class Store:
             self.db.close()
             raise ValueError("database_migration_failed") from None
 
+    POLICY_KEYS = frozenset({"domains", "read_domains", "entities", "revision"})
+    ENTITY_KEYS = frozenset({"enabled", "read_enabled", "identity"})
+
     @staticmethod
-    def _validate_policy(policy):
+    def _validate_bool_map(value):
+        if not isinstance(value, dict) or any(
+            not isinstance(k, str) or type(v) is not bool for k, v in value.items()
+        ):
+            raise ValueError("invalid_policy")
+
+    @classmethod
+    def _validate_policy(cls, policy):
+        if not isinstance(policy, dict):
+            raise ValueError("invalid_policy")
+        unknown = set(policy) - cls.POLICY_KEYS
+        if unknown:
+            raise ValueError("invalid_policy")
         if not isinstance(policy.get("domains"), dict) or not isinstance(
             policy.get("entities"), dict
         ):
             raise ValueError("invalid_policy")
-        if any(type(v) is not bool for v in policy["domains"].values()):
+        cls._validate_bool_map(policy["domains"])
+        cls._validate_bool_map(policy.get("read_domains") or {})
+        revision = policy.get("revision", 0)
+        if type(revision) is not int or revision < 0:
             raise ValueError("invalid_policy")
         for entry in policy["entities"].values():
-            if not isinstance(entry, dict) or type(entry.get("enabled")) is not bool:
+            if not isinstance(entry, dict) or set(entry) - cls.ENTITY_KEYS:
+                raise ValueError("invalid_policy")
+            if type(entry.get("enabled")) is not bool:
+                raise ValueError("invalid_policy")
+            if "read_enabled" in entry and type(entry["read_enabled"]) is not bool:
+                raise ValueError("invalid_policy")
+            if "identity" in entry and not isinstance(entry["identity"], (str, type(None))):
                 raise ValueError("invalid_policy")
 
     def policy(self) -> PolicyDict:
@@ -104,40 +173,80 @@ class Store:
         current = self.policy()
         if "domains" not in policy:
             policy = {"domains": policy, "entities": current.entities}
+        # Partial writes must never silently drop unrelated sections.
+        policy = dict(policy)
+        policy.setdefault("read_domains", current.read_domains)
+        policy.setdefault("entities", current.entities)
         self._validate_policy(policy)
-        policy = {**policy, "revision": current.get("revision", 0) + 1}
+        revision = current.get("revision", 0)
+        policy["revision"] = (revision if isinstance(revision, int) else 0) + 1
         self.db.execute(
             "INSERT OR REPLACE INTO settings VALUES ('policy', ?)", (json.dumps(policy),)
         )
         self.db.commit()
 
-    def set_entity_policy(self, entity_id: str, enabled: bool, identity=None):
+    def set_entity_policy(self, entity_id: str, enabled: bool, identity=None, read_enabled=None):
         current = self.policy()
         entities = dict(current.entities)
-        entities[entity_id] = {"enabled": enabled, "identity": identity}
-        self.set_policy({"domains": current.domains, "entities": entities})
+        existing = entities.get(entity_id, {})
+        entry = {**existing, "enabled": enabled}
+        if read_enabled is not None:
+            entry["read_enabled"] = read_enabled
+        entry["identity"] = identity if identity is not None else existing.get("identity")
+        entities[entity_id] = entry
+        self.set_policy(
+            {
+                "domains": current.domains,
+                "read_domains": current.read_domains,
+                "entities": entities,
+            }
+        )
 
     def reconcile_registry(self, ha):
         current = self.policy()
-        entities = dict(current.entities)
         by_identity = {r["id"]: r["entity_id"] for r in ha.registry if r.get("id")}
         registry = {r["entity_id"]: r for r in ha.registry}
-        for old, entry in list(current.entities.items()):
+        renames = getattr(ha, "renames", {})
+
+        new_entities = {}
+        for old_id, entry in current.entities.items():
             identity = entry.get("identity")
-            new = (
-                by_identity.get(identity) if identity else getattr(ha, "renames", {}).get(old, old)
+            target_id = by_identity.get(identity) if identity else renames.get(old_id, old_id)
+            if not target_id:
+                target_id = old_id
+
+            effective_identity = identity or registry.get(target_id, {}).get("id")
+            new_entry = {
+                "enabled": entry.get("enabled", True),
+                "identity": effective_identity,
+            }
+            # Read settings survive rename/swap/cycle exactly like write settings.
+            if "read_enabled" in entry:
+                new_entry["read_enabled"] = bool(entry["read_enabled"])
+
+            if target_id in new_entities:
+                existing = new_entities[target_id]
+                both_enabled = existing.get("enabled", True) and new_entry.get("enabled", True)
+                merged = {
+                    "enabled": both_enabled,
+                    "identity": existing.get("identity") or new_entry.get("identity"),
+                }
+                if "read_enabled" in existing or "read_enabled" in new_entry:
+                    merged["read_enabled"] = bool(existing.get("read_enabled", True)) and bool(
+                        new_entry.get("read_enabled", True)
+                    )
+                new_entities[target_id] = merged
+            else:
+                new_entities[target_id] = new_entry
+
+        if new_entities != current.entities:
+            self.set_policy(
+                {
+                    "domains": current.domains,
+                    "read_domains": current.read_domains,
+                    "entities": new_entities,
+                }
             )
-            if new and new != old:
-                # Never silently merge two conflicting overrides.
-                if new in entities and entities[new] != entry:
-                    entities[new] = {"enabled": False, "identity": identity}
-                else:
-                    entities[new] = dict(entry)
-                del entities[old]
-            if new in entities and not identity and registry.get(new, {}).get("id"):
-                entities[new] = {**entities[new], "identity": registry[new]["id"]}
-        if entities != current.entities:
-            self.set_policy({"domains": current.domains, "entities": entities})
 
     def get(self, request_id):
         row = self.db.execute(
@@ -187,13 +296,28 @@ class Store:
         for text, raw in rows:
             try:
                 res = json.loads(raw)
-                if res.get("status") == "succeeded" and not res.get("hidden"):
-                    norm = " ".join(text.split())
-                    if norm and norm not in seen:
-                        seen.add(norm)
-                        shortcuts.append(norm)
-                        if len(shortcuts) >= limit:
-                            break
+                if res.get("status") != "succeeded" or res.get("hidden"):
+                    continue
+                # Exclude condition not met, pure queries, or text/message commands
+                if res.get("reason") in {"condition_not_met", "query_succeeded"}:
+                    continue
+                if res.get("condition_result") is False or res.get("query_results"):
+                    continue
+                actions = res.get("actions", [])
+                if not actions or all(a.get("is_query") for a in actions):
+                    continue
+                if any(a.get("domain") in {"input_text", "notify", "tts"} for a in actions):
+                    continue
+                # Must have at least one dispatched or already-in-state physical control action
+                if not any(a.get("status") in {"sent", "already_in_state"} for a in actions):
+                    continue
+
+                norm = " ".join(text.split())
+                if norm and norm not in seen:
+                    seen.add(norm)
+                    shortcuts.append(norm)
+                    if len(shortcuts) >= limit:
+                        break
             except Exception:
                 continue
         return shortcuts
@@ -210,12 +334,29 @@ class Store:
         self.db.commit()
 
     def clear_history(self):
-        # Preserve IDs and execution status for deduplication, remove command content.
+        # Preserve IDs and execution status for deduplication, strictly remove command content and plans.
+        ALLOWED_FIELDS = {
+            "id",
+            "created",
+            "status",
+            "reason",
+            "hidden",
+            "timings_ms",
+            "providers",
+            "model_calls",
+        }
         for request_id, raw in self.db.execute("SELECT id, result FROM requests").fetchall():
-            result = json.loads(raw)
-            result.update(text="", actions=[], hidden=True)
+            try:
+                res = json.loads(raw)
+            except Exception:
+                res = {}
+            cleaned = {k: v for k, v in res.items() if k in ALLOWED_FIELDS}
+            cleaned["text"] = ""
+            cleaned["actions"] = []
+            cleaned["hidden"] = True
             self.db.execute(
-                "UPDATE requests SET text='', result=? WHERE id=?", (json.dumps(result), request_id)
+                "UPDATE requests SET text='', result=? WHERE id=?",
+                (json.dumps(cleaned, ensure_ascii=False), request_id),
             )
         self.db.commit()
 

@@ -45,6 +45,33 @@ const reasons = {
   temperature_out_of_range: '설정 가능한 온도 범위를 벗어났습니다.',
   hvac_mode_not_supported: '기기에서 지원하지 않는 모드입니다.',
   brightness_out_of_range: '밝기 값(1~100%)이 올바르지 않습니다.',
+  condition_evaluation_failed: '조건 센서를 확인하거나 평가할 수 없어 안전하게 실행을 중단했습니다.',
+  sensitive_cover_protected: '차고문/대문 등 보안 관련 기기는 자동 제어가 제한됩니다.',
+  sensitive_input_protected: '비밀번호 및 보안 입력 항목은 음성/텍스트로 설정할 수 없습니다.',
+  conflicting_actions: '상충되는 동작이 동시에 요청되어 실행하지 않았습니다.',
+  text_length_invalid: '입력 가능한 텍스트 길이를 벗어났습니다.',
+  read_policy_denied: '이 기기의 상태 조회는 관리자 설정에서 허용되지 않았습니다.',
+  control_policy_denied: '이 기기의 제어는 관리자 설정에서 허용되지 않았습니다.',
+  policy_denied: '허용되지 않은 조회/제어 요청이었습니다.',
+  output_policy_denied: '방송 출력 기기가 허용 범위 밖에 있어 전송하지 않았습니다.',
+  output_entity_unavailable: '방송 출력 기기의 상태를 확인할 수 없어 전송하지 않았습니다.',
+  tts_output_target_required: '방송할 출력 스피커를 원문에서 명확히 확인하지 못해 전송하지 않았습니다.',
+  calendar_range_required: '조회할 일정 기간을 확인하지 못해 실행하지 않았습니다.',
+  calendar_start_required: '일정 생성 날짜를 확인하지 못해 실행하지 않았습니다.',
+  calendar_time_invalid: '지정된 시작 시간을 해석할 수 없습니다.',
+  forecast_type_required: '시간별/일별 예보 중 어떤 유형인지 확인하지 못했습니다.',
+  forecast_type_unsupported: '이 날씨 엔티티는 해당 예보 유형을 지원하지 않습니다.',
+  datetime_value_required: '설정할 날짜/시간 값을 원문에서 확인하지 못했습니다.',
+  datetime_value_invalid: '이 도우미가 지원하지 않는 날짜/시간 형식입니다.',
+  todo_status_required: '할 일을 완료/미완료 중 어떤 상태로 변경할지 확인하지 못했습니다.',
+  todo_item_not_found: '지정한 할 일 목록에서 대상을 찾지 못해 수정/삭제하지 않았습니다.',
+  todo_item_ambiguous: '같은 이름의 할 일이 여러 개라 수정/삭제하지 않았습니다.',
+  service_parameters_required: '서비스에 필요한 값을 확인하지 못해 실행하지 않았습니다.',
+  condition_unsupported: '부정·복합·기준이 모호한 조건은 지원하지 않아 실행하지 않았습니다.',
+  condition_unit_unspecified: '조건 대상 센서의 단위를 확인할 수 없어 조건을 평가하지 않고 실행하지 않았습니다.',
+  condition_unit_conflict: '조건 단위가 원문 또는 센서 단위와 맞지 않아 실행하지 않았습니다.',
+  calendar_end_required: '시간 일정은 시작과 종료 시각이 모두 필요하여 생성하지 않았습니다.',
+  timezone_unknown: 'HA 시간대를 확인할 수 없어 날짜/시간 쓰기·조회를 수행하지 않았습니다.',
 };
 
 let busy = false;
@@ -98,7 +125,21 @@ function formatResultSummary(result) {
   if (result.status !== 'succeeded') {
     return displayReason(result.reason);
   }
+  if (result.reason === 'condition_not_met') {
+    return '조건이 충족되지 않아 기기를 제어하지 않았습니다.';
+  }
   const actions = result.actions || [];
+  const queryActions = actions.filter((a) => a.status === 'query_succeeded');
+  if (queryActions.length || result.reason === 'query_succeeded') {
+    const qrList = result.query_results || [];
+    if (qrList.length) {
+      return qrList.map((q) => `${q.name || q.entity_id}: ${q.state}${q.unit || ''}`).join(', ');
+    }
+    if (queryActions.length) {
+      return queryActions.map((a) => `${a.name}: ${a.query_result || '확인 완료'}`).join(', ');
+    }
+    return '상태 조회를 완료했습니다.';
+  }
   if (!actions.length) {
     return '기기 상태를 유지했습니다.';
   }
@@ -271,7 +312,15 @@ async function loadDomains() {
       const summary = node('div', undefined, 'domain-summary');
 
       const info = node('div', undefined, 'domain-info');
-      info.append(node('span', d.label, 'domain-name'), node('span', `${d.count}개 기기`, 'domain-count'));
+      let countText = '';
+      if (!d.supported || d.status === 'deferred') {
+        countText = `발견 ${d.discovered_count}개 · ${d.note}`;
+      } else if (d.status === 'query_only') {
+        countText = `발견 ${d.discovered_count}개 · 조회 가능 ${d.queryable_count}개 · 조회 허용 ${d.allowed_query_count}개`;
+      } else {
+        countText = `발견 ${d.discovered_count}개 · 제어 가능 ${d.controllable_count}개 · 제어 허용 ${d.allowed_control_count}개 · 조회 허용 ${d.allowed_query_count}개`;
+      }
+      info.append(node('span', d.label, 'domain-name'), node('span', countText, 'domain-count'));
 
       const controls = node('div', undefined, 'domain-controls');
 
@@ -291,16 +340,16 @@ async function loadDomains() {
       const masterToggle = node('button', undefined, 'toggle');
       masterToggle.type = 'button';
       masterToggle.role = 'switch';
-      masterToggle.setAttribute('aria-label', `${d.label} 허용`);
+      masterToggle.setAttribute('aria-label', `${d.label} 제어 허용`);
       masterToggle.setAttribute('aria-checked', String(d.enabled));
-      masterToggle.disabled = !d.supported || busy;
+      masterToggle.disabled = !d.supported || d.status === 'deferred' || busy;
 
       masterToggle.addEventListener('click', async () => {
         masterToggle.disabled = true;
         try {
           await api('policy', {
             method: 'PUT',
-            body: JSON.stringify({ [d.domain]: !d.enabled }),
+            body: JSON.stringify({ domains: { [d.domain]: !d.enabled } }),
           });
           await loadDomains();
         } catch (e) {
@@ -308,7 +357,28 @@ async function loadDomains() {
           masterToggle.disabled = false;
         }
       });
-      controls.append(masterToggle);
+      controls.append(node('span', '제어', 'toggle-caption'), masterToggle);
+
+      const readToggle = node('button', undefined, 'toggle');
+      readToggle.type = 'button';
+      readToggle.role = 'switch';
+      readToggle.setAttribute('aria-label', `${d.label} 조회 허용`);
+      readToggle.setAttribute('aria-checked', String(Boolean(d.read_enabled)));
+      readToggle.disabled = !d.supported || d.status === 'deferred' || busy;
+      readToggle.addEventListener('click', async () => {
+        readToggle.disabled = true;
+        try {
+          await api('policy', {
+            method: 'PUT',
+            body: JSON.stringify({ read_domains: { [d.domain]: !d.read_enabled } }),
+          });
+          await loadDomains();
+        } catch (e) {
+          userFeedback(displayReason(e.message), true);
+          readToggle.disabled = false;
+        }
+      });
+      controls.append(node('span', '조회', 'toggle-caption'), readToggle);
 
       summary.append(info, controls);
       item.append(summary);
@@ -322,21 +392,41 @@ async function loadDomains() {
           const entToggle = node('button', undefined, 'toggle');
           entToggle.type = 'button';
           entToggle.role = 'switch';
-          entToggle.setAttribute('aria-label', `${ent.name} 허용`);
+          entToggle.setAttribute('aria-label', `${ent.name} 제어 허용`);
           entToggle.setAttribute('aria-checked', String(ent.enabled));
           entToggle.addEventListener('click', async () => {
             entToggle.disabled = true;
             try {
               await api('policy', {
                 method: 'PUT',
-                body: JSON.stringify({ entity_id: ent.entity_id, entity_enabled: !ent.enabled }),
+                body: JSON.stringify({ entities: { [ent.entity_id]: { enabled: !ent.enabled } } }),
               });
               await loadDomains();
             } catch (e) {
               entToggle.disabled = false;
             }
           });
-          row.append(entName, entToggle);
+          const entReadToggle = node('button', undefined, 'toggle');
+          entReadToggle.type = 'button';
+          entReadToggle.role = 'switch';
+          entReadToggle.setAttribute('aria-label', `${ent.name} 조회 허용`);
+          entReadToggle.setAttribute('aria-checked', String(Boolean(ent.read_enabled)));
+          entReadToggle.addEventListener('click', async () => {
+            entReadToggle.disabled = true;
+            try {
+              await api('policy', {
+                method: 'PUT',
+                body: JSON.stringify({
+                  entities: { [ent.entity_id]: { read_enabled: !ent.read_enabled } },
+                }),
+              });
+              await loadDomains();
+            } catch (e) {
+              entReadToggle.disabled = false;
+            }
+          });
+          row.append(entName, node('span', '제어', 'toggle-caption'), entToggle,
+            node('span', '조회', 'toggle-caption'), entReadToggle);
           accordion.append(row);
         }
         item.append(accordion);
@@ -495,6 +585,42 @@ $('rescan').addEventListener('click', async () => {
     $('rescan').disabled = false;
   }
 });
+
+async function downloadLogs() {
+  const includeText = $('export-include-text')?.checked || false;
+  const btn = $('download-logs');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(`api/history/export?include_text=${includeText}`, {
+      headers: { 'X-FHC-Request': '1' },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.error || 'export_failed');
+    }
+    const blob = await res.blob();
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : `fhc-diagnostics-${Date.now()}.zip`;
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      a.remove();
+    }, 100);
+  } catch (err) {
+    alert(`로그 다운로드 실패: ${err.message}`);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+$('download-logs')?.addEventListener('click', downloadLogs);
 
 $('clear-history').addEventListener('click', async () => {
   try {

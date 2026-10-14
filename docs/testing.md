@@ -14,7 +14,7 @@
 
 `tests/test_corrections.py`는 그룹 leaf 제외/중복/순환, 안정 ID rename, legacy DB/손상/미래 버전, 단위/step/최신 capability, 대상별 literal 연결, 복합 속성/no-op, Supervisor 최신 옵션 병합/오류, 활성 planning 중 변경, 관리 권한 거부를 검사한다. 전체 71개 테스트와 Ruff/JS 구문 검사를 실행한다.
 
-테스트 VM에서만 `tests/fixtures/haos.yaml`을 사용한다. 공식 demo 기기, 실제 조명 그룹, 밝기/색 없는 template light를 제공한다. 사용자 설치에는 YAML 편집이 필요 없다. 레지스트리에서 `climate.hvac` 이름을 “거실 에어컨”, `climate.heatpump`를 “침실 에어컨”으로 설정하고 기존 영역 fixture를 유지한다.
+테스트 VM에서만 `tests/fixtures/haos.yaml`을 사용한다. 공식 demo 기기, 실제 조명 그룹, 밝기/색 없는 template light를 제공한다. FIX_06/07부터 `input_datetime.fhc_wake`(has_time)·`input_text.fhc_secret`(password) 헬퍼와 writable local_calendar(`FHC 로컬 일정`)가 fixture에 포함된다. local_calendar는 YAML platform이 제거되어 config flow API로 생성하며 `scripts/verify_live_bc.py`가 실행마다 entry를 재생성해 상태를 누적시키지 않는다. demo 스피커/날씨/센서/할 일에는 한글 registry 이름(침실 스피커, 집 날씨, 밖에 온도, 장보기 목록 등)을 WS 엔티티 registry update로 부여해 한국어 지칭을 시험한다. 사용자 설치에는 YAML 편집이 필요 없다. 레지스트리에서 `climate.hvac` 이름을 “거실 에어컨”, `climate.heatpump`를 “침실 에어컨”으로 설정하고 기존 영역 fixture를 유지한다.
 
 유효한 개발용 HA 토큰과 OpenRouter 키를 Git 제외 `.local/ha-credentials.json` / `.local/options.json`에 준비한 뒤 `PYTHONPATH=addon/app uv run python scripts/evaluate_stage_a.py`를 실행한다. localhost 테스트 HAOS와 Microsoft Decision-1/OpenRouter만 허용하는 검사이며 다른 모델/운영 HA로 바꿔 실행하지 않는다. 실제 HA 상태·속성과 기대값을 비교하고 `.local/stage-a-evaluation.json`에 결과를 기록한다. 키와 토큰을 출력하지 않는다. 단위 테스트와 이 실제 호출 결과를 혼동하지 않는다.
 
