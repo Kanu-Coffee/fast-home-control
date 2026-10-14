@@ -3,6 +3,15 @@
 - 자동 테스트 115개 통과. Ruff check/format, JS 구문, `git diff --check` 통과.
 - **R1 조건 단위 검증 보정**: `condition_unit` 응답의 `choice()` 예외 처리에서 fallback 대상을 `low_confidence`로 엄격히 한정. malformed type, label 불일치, 비숫자/NaN 확률, 합계 불일치 등 `invalid_model_response`는 정상 단위 파생으로 삼키지 않고 fail-closed(HA 전송 0건) 거부. 확신도가 낮은 유효 응답은 literal/native 단위 안전 파생으로 처리되는 기존 성공 회귀 검증.
 - **R2 결과 표 및 검증 범위 명확화**: 아래 dev.8 절의 서비스 계약 및 모델별 단발 평가 수치를 레이어별/분모별로 정정.
+- **V1 설치형 앱 검증(프로젝트 전용 HAOS Core 2026.10.1)**:
+  - 공식 GitHub `#dev` 저장소 reload 후 Supervisor를 통해 **dev.8→dev.9(0.2.0-dev.9)** 업그레이드 및 기동 확인 (`state=started`, `version=0.2.0-dev.9`).
+  - Ingress 관리자 세션: `api/status`에서 version `0.2.0-dev.9`, `ha_ready: true`, `execution_ready: true` 확인.
+  - Ingress 조명 명령(`거실불 꺼줘`): status `succeeded`, 2×turn_off sent, read-back으로 거실 조명(천장등/RGBWW)만 off되고 주방/서재 조명 유지 확인.
+  - Ingress B/C 대표 명령(`거실 날씨 어때`): 모델 확신도 부족 시 0전송 fail-closed(`rejected`, `low_confidence`).
+  - Ingress 조건부 명령(`거실 온도가 28도 이상이면 거실불 꺼줘`): 센서 조건 미충족/평가 단계 안전 거부(`rejected`, `condition_evaluation_failed`, 0전송).
+  - 관리자 정책 PUT(200) 후 Supervisor 애드온 재시작: 재시작 후 `0.2.0-dev.9` 버전 유지 및 `read_domains: {'switch': false}` 정책 보존 확인.
+  - 진단 내역 내보내기(`GET /api/history/export`): 200, application/zip, `manifest.json`/`summary.json`/`requests.jsonl` 무결성 검증, 기본 내보내기 시 원문 명령 텍스트 및 비밀번호/토큰 미포함 확인.
+  - 검증 완료 후 테스트 정책 원복, VM 정상 종료(stopped), 자원 증거는 `.local/fix09-install-verification.json` 및 `.local/test-resources.json`에 기록.
 
 # 0.2.0-dev.8 — FIX_05~07 민감/정책/타입 매개변수·설치형 검증 (2026-10-14)
 
@@ -12,8 +21,9 @@
 - 공식 GitHub `#dev` 저장소 갱신→Supervisor 소스 빌드로 dev.6→**dev.8 설치·기동**을 프로젝트 전용 HAOS(Core 2026.10.1)에서 수행했다. 설치 앱 Ingress에서 관리자 세션으로 `거실불 꺼줘`를 실행, 실제 조명 2개 off·타 영역 조명 유지·2×turn_off sent를 read-back으로 확인했다. 설치 앱에서 직접 확인한 범위는 조명 실행/정책·재시작/다운로드이며, 달력·TTS 등의 깊은 계약 검증은 호스트 Engine→동일 테스트 HA 경로를 사용했다.
 - 설치 앱 관리자 정책 토글(read_domains·개별 entity read_enabled)이 저장·조회·**addon 재시작 후 보존**됐다. 진단 ZIP 다운로드는 200/zip 파싱 성공, 기본 익명화에서 명령 원문이 제외됐고 토큰 조각이 본문에 없었다. 검증 후 잔여 테스트 정책은 기본값으로 되돌렸다.
 - **서비스 계약(호스트 Engine → 동일 테스트 HA, 모의 모델 라벨 + 실제 HA 서비스)**:
-  - **service_contract 8개 통과**: 달력 start/end 생성 후 이벤트 제목 read-back, get_events 실제 `{"events":[...]}` 응답 표시, weather 지원 예보 유형 실응답, TTS speak의 media_player_entity_id=선택 스피커(고정 fallback 없음), todo 동명/부재 preflight 0전제 거부, input_datetime 오후 8시 30분→20:30 read-back, climate 목표온도.
-  - **safety_negative 1개 통과**: 총 9개 assertion 통과.
+  - **service_contract 8개 통과**: 달력 start/end 생성(`calendar_create_typed_window`), 달력 이벤트 제목 read-back(`calendar_readback`), get_events 실제 `{"events":[...]}` 응답 표시(`calendar_events_nonempty_display`), weather 지원 예보 유형 실응답(`weather_forecast_daily`), TTS speak의 media_player_entity_id=선택 스피커(`tts_speak_target_payload`), input_datetime 값 설정(`input_datetime_value`), input_datetime 20:30 read-back(`input_datetime_readback`), climate 목표온도 24도 설정 및 read-back(`climate_set_temperature_24`).
+  - **safety_negative 1개 통과**: todo 동명 항목에 대한 쓰기 전 사전 검증 거부(`todo_duplicate_refused_before_write`, 사유: `todo_item_ambiguous`, 전송 0건).
+  - 총 9개 assertion 통과. (별도 password 시험은 `.local/fix06-live-r1-password.json`의 증거로 분리)
 - **실모델 왕복(정상 요청 6건 + 음성 사례 2건, 합계 8건, 코드 cb6a248, fixture 한글 이름/배타 정책 정리)**:
   - **Microsoft Decision-1**(응답 `…-20261009`) **전체 기대 결과 일치 6/8**:
     - 정상 요청 6개 중 5개 성공 (조명 off, typed 조건 false(0전송), TTS 출력 지정 전송, 일정 조회, 예보 조회).
