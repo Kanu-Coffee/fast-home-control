@@ -1,3 +1,20 @@
+# 0.2.0-dev.10 — UI/UX 편의성 개선, 동작 교정 및 공식 브랜드 아이콘 통일 (2026-10-14)
+- 자동 테스트 116개 통과. Ruff check/format (21 files), JS 구문 (`node --check`), `git diff --check`, `actionlint` (.github/workflows/check.yml), `hadolint` (addon/Dockerfile) 통과.
+- **UI/UX 개선 및 브라우저 동작 검증 (`tests/test_browser_ui.py`)**:
+  - **스위치 정렬 및 터치 영역 (R6)**: `.domain-summary` 및 `.entity-row`에서 제어와 조회 스위치를 각각 독립된 78px 폭의 `.toggle-group`으로 패키징. `.toggle`의 bounding box를 측정하여 가로 44px, 세로 44px의 터치 영역을 확보하고 내부 `::before` 가상 요소로 44×24px 시각 디자인을 유지. 제어 열과 조회 열의 X 좌표가 일치함을 확인.
+  - **정책 저장 생명주기 및 경합 방어 (FIX_02 R2, R1)**: 도메인 정책 요청 세대 카운터(`domainsRequestSeq`)를 적용하여 느린 이전 GET 응답이 최신 정책 상태를 덮어쓰지 않도록 폐기. 정책 PUT 실행부터 후속 최신 GET 로드 완료 시점(`finally`)까지 `isPolicySaving = true`를 유지하여 토글 연타나 경합 중 비정상 토글 상태 방지. 특수문자 따옴표/대괄호가 포함된 기기 이름에서도 `[data-entity-id]` 기반으로 포커스를 복원함을 확인.
+  - **엔티티 검색 중 아코디언 조작 및 포커스 (R5)**: 검색어 입력 시 일치 항목을 자동 표시하되, 검색 중 사용자가 '목록 닫기'를 누르면 아코디언이 `aria-expanded="false"`로 닫히고 키보드 포커스가 `#toggle-btn-{domain}`에 유지됨을 확인. Space/Enter 키보드 토글 및 검색어 초기화 시 기본 펼침 상태 복원을 검증.
+  - **OpenRouter 모델 드롭다운 및 직접 입력 초안 보존 (R4)**: `cfg-openrouter-model-select` 네이티브 셀렉트에서 '직접 입력' 선택 후 작성한 초안 문자열(`customModelDraft`)이 후보 프리셋(Microsoft, Jev 1.13)을 오가는 동안 덮어씌워지지 않고 보존됨을 확인. 실제 POST 저장 및 재로드 시 저장값 반영 검증.
+  - **상세 실행 기록 변경 감지 및 열람 위치 보존 (FIX_02 R1, R3)**: `/api/history` 50건 렌더링. 진단 지문(fingerprint)에 `providers`, `phase`, `model_trace`, `timings_ms`, `actions`를 포함하여 동일 상태 코드 내 진단 및 공급자 상태 갱신을 누락 없이 감지. 갱신 시 `<details>` 열림 상태와 `<pre>` 내부 스크롤 유지. `getBoundingClientRect()` 기반 컨테이너-자식 상대 좌표 계산으로 선행 행 확장 또는 상단 새 항목 추가 시에도 뷰포트 내 기준 카드의 상대 위치 안정 유지 및 `focus({ preventScroll: true })` 적용.
+  - **실제 명령 실패 처리 및 대기 중 입력 보존 (Section 3 & 4)**: `page.evaluate()` 편법 없이 실제 route hold와 사용자 타이핑 상호작용으로 대기 중 입력 문장 보존 검증. 실패 시(503) 오류 피드백 노출 및 사용자가 새로 입력 중이지 않은 경우에만 원래 명령문 자동 복구 확인.
+  - **모바일 뷰포트**: 320/360/390/430px 모바일 뷰포트에서 가로 스크롤 넘침 없음(`scrollWidth <= clientWidth`) 및 바로가기 2열 그리드 배치 확인.
+- **브랜드 자산**:
+  - `image-generator` 원본 기반 1024×1024 마스터 아이콘과 파생 자산(`docs/branding/master-icon.png`, `docs/branding/social-preview.png`, `addon/icon.png`, `addon/logo.png`, `addon/app/fhc/static/` 파비콘 및 PWA 아이콘) 배치.
+  - 헤더 이미지 및 파비콘 링크의 로컬 200 OK 응답 확인.
+- **검증 한계 및 경계**:
+  - 본 검증은 로컬 Playwright Chromium 및 mock HA(`FakeHA`) 환경에서 수행되었으며, 실제 운영 Home Assistant 및 실제 유료 모델 API 호출은 포함하지 않음.
+  - Ingress 경로 프록시 하에서의 실제 터치스크린 조작, 애드온 스토어 실제 렌더링, GitHub 웹 UI의 social preview 반영은 추후 실제 환경 배포 시 확인 필요.
+
 # 0.2.0-dev.9 — FIX_08 단위 모델 응답 검증 보정 및 수치 정정 (2026-10-14)
 
 - 자동 테스트 115개 통과. Ruff check/format, JS 구문, `git diff --check` 통과.

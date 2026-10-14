@@ -45,6 +45,17 @@ header {
   color: inherit;
   text-decoration: none;
   letter-spacing: -0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  display: block;
 }
 
 .header-right {
@@ -236,15 +247,29 @@ button:disabled {
   color: var(--ink);
   cursor: pointer;
   transition: all 0.15s ease;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+  line-height: 1.4;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 
 .shortcut-card:hover {
   background: #e8eef5;
   border-color: #cbd5e1;
   transform: translateY(-1px);
+}
+
+.shortcut-card:active {
+  transform: translateY(0);
+  background: #dbe4ef;
+}
+
+.shortcut-card:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* Admin Mode */
@@ -423,6 +448,27 @@ select {
   margin-bottom: 16px;
 }
 
+.scope-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.search-wrap {
+  flex: 1 1 240px;
+}
+
+.search-wrap input[type="search"] {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font: 14px inherit;
+}
+
 .domains-list {
   display: flex;
   flex-direction: column;
@@ -442,47 +488,86 @@ select {
 
 .domain-info {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .domain-name {
   font-weight: 650;
   font-size: 15px;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 .domain-count {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted);
+  word-break: keep-all;
 }
 
 .domain-controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-.toggle-entities-btn {
+.toggle-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 78px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.toggle-group.placeholder {
+  visibility: hidden;
+}
+
+.toggle-caption {
   font-size: 12px;
-  padding: 4px 8px;
+  font-weight: 550;
+  color: var(--muted);
+  user-select: none;
 }
 
 .toggle {
   width: 44px;
-  height: 24px;
-  border-radius: 20px;
-  padding: 2px;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 0;
+  padding: 0;
   border: 0;
-  background: #cbd1d9;
+  background: transparent;
   position: relative;
   cursor: pointer;
+  flex-shrink: 0;
+  touch-action: manipulation;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.toggle:after {
+.toggle::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  width: 44px;
+  height: 24px;
+  border-radius: 20px;
+  background: #cbd1d9;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.toggle::after {
   content: "";
   position: absolute;
   left: 2px;
-  top: 2px;
+  top: 12px;
   width: 20px;
   height: 20px;
   background: white;
@@ -491,12 +576,40 @@ select {
   transition: left 0.15s ease;
 }
 
-.toggle[aria-checked="true"] {
+.toggle[aria-checked="true"]::before {
   background: var(--accent);
 }
 
-.toggle[aria-checked="true"]:after {
+.toggle[aria-checked="true"]::after {
   left: 22px;
+}
+
+.toggle:focus-visible::before {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.toggle-entities-btn {
+  font-size: 12px;
+  padding: 6px 12px;
+  min-height: 40px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-card);
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-entities-btn:hover {
+  background: #e2e8f0;
 }
 
 .entities-accordion {
@@ -509,17 +622,54 @@ select {
 
 .entity-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 6px 0;
   border-bottom: 1px solid #edf2f7;
+  min-height: 40px;
 }
 
 .entity-row:last-child {
   border-bottom: 0;
 }
 
+.entity-name-col {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.entity-actions-col {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 /* History */
+.history-meta-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-list {
+  position: relative;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 4px;
+  overscroll-behavior: contain;
+}
+
 .history-row {
   display: grid;
   grid-template-columns: 50px 1fr;
@@ -529,6 +679,10 @@ select {
   font-size: 13px;
 }
 
+.history-row:first-child {
+  border-top: 0;
+}
+
 .history-row time {
   color: var(--muted);
   font-size: 12px;
@@ -536,12 +690,27 @@ select {
 
 .history-row .command-text {
   font-weight: 600;
+  overflow-wrap: break-word;
 }
 
 .history-row .result-detail {
   grid-column: 2;
   color: var(--muted);
   font-size: 12px;
+  overflow-wrap: break-word;
+}
+
+.diagnostic-json {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  margin-top: 6px;
 }
 
 .text-button {
@@ -616,6 +785,10 @@ select {
   clip: rect(0, 0, 0, 0);
 }
 
+.input-with-status {
+  flex-wrap: wrap;
+}
+
 footer {
   text-align: center;
   font-size: 12px;
@@ -631,13 +804,34 @@ footer {
   h1 {
     font-size: 26px;
   }
+  .history-list {
+    max-height: 55dvh;
+  }
+  .history-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .section-head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
 }
 
-.diagnostic-json { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
-.input-with-status { flex-wrap: wrap; }
-
-.toggle-caption {
-  font-size: 0.72rem;
-  color: var(--muted, #8a8f98);
-  margin-left: 4px;
+@media (max-width: 640px) {
+  .shortcuts-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .shortcut-card {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .domain-summary {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .domain-controls {
+    justify-content: flex-end;
+  }
 }

@@ -1,3 +1,17 @@
+# 0.2.0-dev.10
+
+- UI/UX 편의성 개선:
+  - 제어 및 조회 스위치 열 고정 정렬 (기기명 길이에 관계없이 수직 정렬 보장, 44px 터치 영역 및 focus-visible 지원).
+  - 정책 편집 시 도메인 목록 펼침 상태 및 스크롤 위치, 포커스 보존. 캐시 기반 엔티티 검색으로 타이핑 지연 및 중복 네트워크 요청 방지, 검색 해제 시 이전 펼침 상태 복원.
+  - OpenRouter 모델 선택 드롭다운: Microsoft Decision-1, Jev 1.13 후보 및 직접 입력 필드 지원.
+  - 상세 실행 로그: 뷰포트에 맞춘 내부 스크롤 적용(데스크톱 480px / 모바일 55dvh), 8건 제한 제거(최대 50건 전체 표시), 진단 JSON 내부 스크롤 및 10초 주기 갱신 시 details 펼침 상태 보존, 화면 표시/다운로드/보관 범위 안내.
+  - 모바일 리모컨: 최근 명령 바로가기 2열 그리드 보장, 줄바꿈 가독성 개선, 실행 실패 시 입력 문장 자동 복원.
+  - 관리자 모드 진입 즉시 시스템 상태 갱신 및 패널별 피드백/오류 안내.
+- 공식 브랜딩 및 아이콘 자산 통일:
+  - AI 이미지 생성(`image-generator`) 기반 공식 아이콘(1024×1024 마스터) 생성: 번개 엠블럼과 원형 휠이 결합된 에메랄드 그린 리모컨 실루엣.
+  - 웹 UI 헤더, 브라우저 다중 해상도 파비콘(favicon.ico), Apple touch icon, HA 애드온 스토어 icon.png/logo.png, GitHub README, Social preview(1280×640) 일관 적용.
+  - `docs/branding/BRANDING.md`에 디자인 지침, 프롬프트, 자산 매핑 문서화.
+
 # 0.2.0-dev.9
 
 - R1: `condition_unit` 선택 예외 처리에서 fallback 대상을 `low_confidence`로 엄격히 한정. `invalid_model_response`(malformed type/labels/probability/NaN/합계 불일치)는 정상 단위 파생으로 삼키지 않고 `invalid_model_response`로 fail-closed(HA 전송 0건) 처리.

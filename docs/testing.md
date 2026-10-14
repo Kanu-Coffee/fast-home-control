@@ -8,7 +8,12 @@
 
 실기동 시 다음을 구분해 확인한다: HA 자동 탐색과 별칭, 실제 모델 판단, HA 서비스 수락, 가상 기기 상태 변화, Ingress 브라우저 조작. 기기 추가/삭제·영역/이름 변경·수동 탐색·HA 재시작 후 복구를 검사한다. 키/오류 본문을 출력하지 않고 명령·상태·지연만 기록한다. 테스트 종료 후 임시 서버와 VM 프로세스를 정리한다.
 
-브라우저 테스트는 로컬 Playwright Chromium을 사용한다. 데스크톱과 모바일에서 오버플로, 버튼·도메인 정책·이력·재탐색을 검사한다. 결과와 검증 공백은 [verification.md](verification.md)에 남긴다.
+브라우저 테스트는 Playwright Chromium을 사용한다. 깨끗한 CI 환경이나 신규 호스트에서는 브라우저 바이너리가 준비되어 있어야 하므로 사전 준비 단계를 거친다:
+- Chromium 바이너리 및 시스템 의존성 설치: `uv run playwright install --with-deps chromium` (또는 사용자 지정 캐시: `PLAYWRIGHT_BROWSERS_PATH=/path/to/cache uv run playwright install chromium`)
+- 브라우저 검사 실행: `uv run pytest -q tests/test_browser_ui.py`
+- 전체 테스트 스위트 실행: `uv run pytest -q`
+- GitHub Actions 워크플로 정적 검사: `actionlint .github/workflows/check.yml`
+데스크톱과 모바일에서 가로 넘침, 버튼 정렬, 터치 영역(>=44px), 도메인 정책 PUT/GET 후속 생명주기 및 잠금 해제, 검색 중 아코디언 접힘/펼침, 진단 이력 내부 스크롤 및 포커스 보존을 검사한다. 결과와 검증 공백은 [verification.md](verification.md)에 남긴다.
 
 ## 0.2 단계 A 회귀
 

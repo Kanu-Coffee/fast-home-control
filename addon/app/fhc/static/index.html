@@ -4,12 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Fast Home Control</title>
+  <link rel="icon" type="image/x-icon" href="static/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="static/icon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="static/icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="static/apple-touch-icon.png">
   <link rel="stylesheet" href="static/style.css">
   <script src="static/app.js" defer></script>
 </head>
 <body>
   <header>
-    <a href="./" class="logo">Fast Home Control</a>
+    <a href="./" class="logo">
+      <img src="static/icon-32.png" alt="" class="logo-icon" width="24" height="24">
+      <span>Fast Home Control</span>
+    </a>
     <div class="header-right">
       <span id="connection-warning" class="warning-badge" hidden>연결 확인 필요</span>
       <button id="mode-toggle" class="mode-btn" type="button" aria-pressed="false">관리자 모드</button>
@@ -20,8 +27,8 @@
     <!-- 사용자 모드 (기본 리모컨) -->
     <section id="user-view">
       <div class="intro">
-        <h1>무엇을 제어할까요?</h1>
-        <p>자연어로 집 안의 기기를 빠르고 편리하게 제어하세요.</p>
+        <h1>빠른 AI 홈 리모컨</h1>
+        <p>자연어로 집 안의 가전과 조명을 즉시 제어하세요.</p>
       </div>
 
       <form id="command-form" class="remote-form">
@@ -74,9 +81,17 @@
                 <p class="field-desc">새 키는 교체하고, 빈 입력은 기존 키를 유지합니다.</p>
               </div>
               <div class="field-group">
-                <label for="cfg-openrouter-model">OpenRouter 모델 ID</label>
-                <input type="text" id="cfg-openrouter-model" placeholder="microsoft/microsoft-decision-1">
-                <p class="field-desc">기본값: microsoft/microsoft-decision-1 (Microsoft Decision-1)</p>
+                <label for="cfg-openrouter-model-select">OpenRouter 모델 선택</label>
+                <select id="cfg-openrouter-model-select">
+                  <option value="microsoft/microsoft-decision-1">Microsoft Decision-1</option>
+                  <option value="typesafe/jev-1.13">Jev 1.13</option>
+                  <option value="custom">직접 입력…</option>
+                </select>
+              </div>
+              <div class="field-group" id="cfg-openrouter-custom-group" hidden>
+                <label for="cfg-openrouter-model">직접 입력 모델 ID</label>
+                <input type="text" id="cfg-openrouter-model" placeholder="예: microsoft/microsoft-decision-1">
+                <p class="field-desc">Decision API 형식과 호환되는 모델 ID를 입력하세요.</p>
               </div>
             </div>
 
@@ -145,7 +160,13 @@
           <h2>도메인 및 엔티티 제어 범위</h2>
           <span class="muted note">허용한 기기만 자연어 명령으로 제어됩니다.</span>
         </div>
-        <label for="entity-search">기기 이름·영역 검색</label><input id="entity-search" type="search" placeholder="이름 또는 영역">
+        <div class="scope-toolbar">
+          <div class="search-wrap">
+            <label class="sr-only" for="entity-search">기기 이름·영역 검색</label>
+            <input id="entity-search" type="search" placeholder="기기 이름 또는 영역 검색…">
+          </div>
+          <span id="policy-feedback" class="muted note" role="status"></span>
+        </div>
         <div id="domains" class="domains-list">
           <p class="muted empty">기기를 탐색 중입니다.</p>
         </div>
@@ -156,10 +177,14 @@
         <div class="section-head">
           <h2>상세 실행 기록</h2>
           <div class="history-actions">
-            <label class="export-opt"><input type="checkbox" id="export-include-text"> 명령 원문·기기명 포함</label>
+            <label class="export-opt"><input type="checkbox" id="export-include-text"> 원문 포함</label>
             <button id="download-logs" class="outline-btn" type="button">진단 로그 다운로드</button>
             <button id="clear-history" class="text-button" type="button">이력 삭제</button>
           </div>
+        </div>
+        <div class="history-meta-bar">
+          <p class="muted note">최근 최대 50건 표시 · 기본 다운로드: 최근 1일 내역 · 전체 보관: 옵션 설정 주기</p>
+          <span id="history-feedback" class="muted note" role="status"></span>
         </div>
         <div id="history" class="history-list">
           <p class="muted empty">아직 실행 내역이 없습니다.</p>
@@ -168,6 +193,6 @@
     </section>
   </main>
 
-  <footer>Fast Home Control Dev · <span id="version">0.2.0-dev.9</span></footer>
+  <footer>Fast Home Control Dev · <span id="version">0.2.0-dev.10</span></footer>
 </body>
 </html>

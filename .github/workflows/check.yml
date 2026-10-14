@@ -13,6 +13,8 @@ jobs:
       - run: uv sync --frozen --python 3.13
       - run: uv run ruff check addon/app tests scripts
       - run: uv run ruff format --check addon/app tests scripts
+      - name: Install Playwright Chromium
+        run: uv run playwright install --with-deps chromium
       - run: uv run pytest -q
       - run: uv export --frozen --no-dev --no-emit-project --no-hashes --no-header --output-file /tmp/requirements.txt && diff addon/requirements.txt /tmp/requirements.txt
       - run: docker build -t fhc-check addon

@@ -1,5 +1,9 @@
 # Fast Home Control Dev
 
+<p align="center">
+  <img src="icon.png" alt="Fast Home Control" width="96" height="96">
+</p>
+
 Configuration 탭 또는 웹 UI 관리자 모드에서 OpenRouter API 키(및 모델 선택)를 입력하거나 Microsoft Foundry의 API 키, HTTPS 리소스 endpoint, Decision-1 배포 이름을 입력하세요. 최소 한 공급자만 필요합니다.
 
 웹 UI는 기본 사용자 리모컨 모드와 관리자 설정 모드로 나뉩니다. 자연어 명령으로 조명, 스위치, 에어컨/공조(climate)를 제어할 수 있습니다.

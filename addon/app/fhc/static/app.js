@@ -77,8 +77,21 @@ const reasons = {
 let busy = false;
 let isAdminMode = false;
 let configBaseline = {};
-let currentPolicy = { domains: {}, entities: {} };
 let latestStatus = {};
+
+// Domain & Policy State Preservation
+const expandedDomains = new Set();
+const searchCollapsedDomains = new Set();
+let cachedDomains = [];
+let isPolicySaving = false;
+let domainsRequestSeq = 0;
+
+// History State Preservation
+const openDiagnostics = new Set();
+let lastHistoryFingerprint = '';
+
+// Model State Preservation
+let customModelDraft = '';
 
 const node = (tag, text, cls) => {
   const e = document.createElement(tag);
@@ -103,8 +116,10 @@ async function api(path, options = {}) {
 
 function userFeedback(text, isError = false) {
   const box = $('user-feedback');
-  box.textContent = text;
-  box.className = isError ? 'feedback-box error' : 'feedback-box';
+  if (box) {
+    box.textContent = text;
+    box.className = isError ? 'feedback-box error' : 'feedback-box';
+  }
 }
 
 function displayReason(code) {
@@ -173,11 +188,13 @@ async function executeCommand(text) {
   updateButtons();
   userFeedback('명령을 확인하고 처리하는 중입니다…');
 
+  const trimmedText = text.trim();
   const requestId = makeRequestId();
+  let succeeded = false;
   try {
     let result = await api('commands', {
       method: 'POST',
-      body: JSON.stringify({ text: text.trim(), request_id: requestId }),
+      body: JSON.stringify({ text: trimmedText, request_id: requestId }),
     });
 
     while (['accepted', 'planning', 'executing'].includes(result.status)) {
@@ -185,13 +202,27 @@ async function executeCommand(text) {
       result = await api(`commands/${requestId}`);
     }
 
-    userFeedback(formatResultSummary(result), result.status !== 'succeeded');
+    succeeded = result.status === 'succeeded';
+    userFeedback(formatResultSummary(result), !succeeded);
+
+    // Restore text into input if execution did not succeed and input is empty
+    if (!succeeded) {
+      const input = $('command');
+      if (input && !input.value.trim()) {
+        input.value = trimmedText;
+      }
+    }
+
     await loadShortcuts();
     if (isAdminMode) {
       await loadHistory();
     }
   } catch (err) {
     userFeedback(displayReason(err.message), true);
+    const input = $('command');
+    if (input && !input.value.trim()) {
+      input.value = trimmedText;
+    }
   } finally {
     busy = false;
     updateButtons();
@@ -278,7 +309,22 @@ async function loadConfig() {
     configBaseline = cfg;
     $('cfg-openrouter-status').textContent = cfg.openrouter_configured ? '설정됨' : '미설정';
     $('cfg-openrouter-status').className = cfg.openrouter_configured ? 'badge online' : 'badge';
-    $('cfg-openrouter-model').value = cfg.openrouter_model || 'microsoft/microsoft-decision-1';
+
+    const currentModel = cfg.openrouter_model || 'microsoft/microsoft-decision-1';
+    const select = $('cfg-openrouter-model-select');
+    const customGroup = $('cfg-openrouter-custom-group');
+    const modelInput = $('cfg-openrouter-model');
+
+    if (currentModel === 'microsoft/microsoft-decision-1' || currentModel === 'typesafe/jev-1.13') {
+      select.value = currentModel;
+      customGroup.hidden = true;
+      modelInput.value = customModelDraft;
+    } else {
+      select.value = 'custom';
+      customGroup.hidden = false;
+      customModelDraft = currentModel;
+      modelInput.value = currentModel;
+    }
 
     $('cfg-azure-status').textContent = cfg.azure_configured ? '설정됨' : '미설정';
     $('cfg-azure-status').className = cfg.azure_configured ? 'badge online' : 'badge';
@@ -291,152 +337,267 @@ async function loadConfig() {
   }
 }
 
-async function loadDomains() {
-  try {
-    const domains = await api('domains');
-    const container = $('domains');
-    container.replaceChildren();
+function renderDomains() {
+  const container = $('domains');
+  if (!cachedDomains.length) {
+    container.replaceChildren(node('p', '발견된 기기가 없습니다.', 'muted empty'));
+    return;
+  }
 
-    if (!domains.length) {
-      container.append(node('p', '발견된 기기가 없습니다.', 'muted empty'));
-      return;
+  const query = $('entity-search').value.trim().toLowerCase();
+  if (!query) {
+    searchCollapsedDomains.clear();
+  }
+  const frag = document.createDocumentFragment();
+  let matchCount = 0;
+
+  for (const d of cachedDomains) {
+    const matching = (d.entities || []).filter((ent) =>
+      !query || `${ent.name} ${ent.area || ''} ${ent.entity_id}`.toLowerCase().includes(query)
+    );
+    if (query && !matching.length) continue;
+    matchCount++;
+
+    const item = node('div', undefined, 'domain-item');
+    const summary = node('div', undefined, 'domain-summary');
+
+    const info = node('div', undefined, 'domain-info');
+    let countText = '';
+    if (!d.supported || d.status === 'deferred') {
+      countText = `발견 ${d.discovered_count}개 · ${d.note}`;
+    } else if (d.status === 'query_only') {
+      countText = `발견 ${d.discovered_count}개 · 조회 가능 ${d.queryable_count}개 · 조회 허용 ${d.allowed_query_count}개`;
+    } else {
+      countText = `발견 ${d.discovered_count}개 · 제어 가능 ${d.controllable_count}개 · 제어 허용 ${d.allowed_control_count}개 · 조회 허용 ${d.allowed_query_count}개`;
     }
+    info.append(node('span', d.label, 'domain-name'), node('span', countText, 'domain-count'));
 
-    const query = $('entity-search').value.trim().toLowerCase();
-    for (const discovered of domains) {
-      const matching = (discovered.entities || []).filter((ent) =>
-        !query || `${ent.name} ${ent.area} ${ent.entity_id}`.toLowerCase().includes(query));
-      if (query && !matching.length) continue;
-      const d = { ...discovered, entities: matching };
-      const item = node('div', undefined, 'domain-item');
-      const summary = node('div', undefined, 'domain-summary');
+    const controls = node('div', undefined, 'domain-controls');
+    const accordionId = `accordion-${d.domain}`;
+    let accordion = null;
 
-      const info = node('div', undefined, 'domain-info');
-      let countText = '';
-      if (!d.supported || d.status === 'deferred') {
-        countText = `발견 ${d.discovered_count}개 · ${d.note}`;
-      } else if (d.status === 'query_only') {
-        countText = `발견 ${d.discovered_count}개 · 조회 가능 ${d.queryable_count}개 · 조회 허용 ${d.allowed_query_count}개`;
-      } else {
-        countText = `발견 ${d.discovered_count}개 · 제어 가능 ${d.controllable_count}개 · 제어 허용 ${d.allowed_control_count}개 · 조회 허용 ${d.allowed_query_count}개`;
-      }
-      info.append(node('span', d.label, 'domain-name'), node('span', countText, 'domain-count'));
+    const hasEntities = matching.length > 0;
+    const isExpanded = query ? !searchCollapsedDomains.has(d.domain) : expandedDomains.has(d.domain);
 
-      const controls = node('div', undefined, 'domain-controls');
-
-      let accordion = null;
-      if (d.entities && d.entities.length > 0) {
-        const toggleListBtn = node('button', query ? '목록 닫기' : '기기 목록', 'toggle-entities-btn text-button');
-        toggleListBtn.type = 'button';
-        toggleListBtn.addEventListener('click', () => {
-          if (accordion) {
-            accordion.hidden = !accordion.hidden;
-            toggleListBtn.textContent = accordion.hidden ? '기기 목록' : '목록 닫기';
+    if (hasEntities) {
+      const toggleListBtn = node('button', isExpanded ? '목록 닫기' : '기기 목록', 'toggle-entities-btn');
+      toggleListBtn.type = 'button';
+      toggleListBtn.id = `toggle-btn-${d.domain}`;
+      toggleListBtn.dataset.action = 'toggle-list';
+      toggleListBtn.dataset.domain = d.domain;
+      toggleListBtn.setAttribute('aria-expanded', String(isExpanded));
+      toggleListBtn.setAttribute('aria-controls', accordionId);
+      toggleListBtn.addEventListener('click', () => {
+        if (query) {
+          if (searchCollapsedDomains.has(d.domain)) {
+            searchCollapsedDomains.delete(d.domain);
+          } else {
+            searchCollapsedDomains.add(d.domain);
           }
-        });
-        controls.append(toggleListBtn);
-      }
-
-      const masterToggle = node('button', undefined, 'toggle');
-      masterToggle.type = 'button';
-      masterToggle.role = 'switch';
-      masterToggle.setAttribute('aria-label', `${d.label} 제어 허용`);
-      masterToggle.setAttribute('aria-checked', String(d.enabled));
-      masterToggle.disabled = !d.supported || d.status === 'deferred' || busy;
-
-      masterToggle.addEventListener('click', async () => {
-        masterToggle.disabled = true;
-        try {
-          await api('policy', {
-            method: 'PUT',
-            body: JSON.stringify({ domains: { [d.domain]: !d.enabled } }),
-          });
-          await loadDomains();
-        } catch (e) {
-          userFeedback(displayReason(e.message), true);
-          masterToggle.disabled = false;
+        } else {
+          if (expandedDomains.has(d.domain)) {
+            expandedDomains.delete(d.domain);
+          } else {
+            expandedDomains.add(d.domain);
+          }
         }
+        const focusedId = toggleListBtn.id;
+        renderDomains();
+        const restored = document.getElementById(focusedId);
+        if (restored) restored.focus();
       });
-      controls.append(node('span', '제어', 'toggle-caption'), masterToggle);
-
-      const readToggle = node('button', undefined, 'toggle');
-      readToggle.type = 'button';
-      readToggle.role = 'switch';
-      readToggle.setAttribute('aria-label', `${d.label} 조회 허용`);
-      readToggle.setAttribute('aria-checked', String(Boolean(d.read_enabled)));
-      readToggle.disabled = !d.supported || d.status === 'deferred' || busy;
-      readToggle.addEventListener('click', async () => {
-        readToggle.disabled = true;
-        try {
-          await api('policy', {
-            method: 'PUT',
-            body: JSON.stringify({ read_domains: { [d.domain]: !d.read_enabled } }),
-          });
-          await loadDomains();
-        } catch (e) {
-          userFeedback(displayReason(e.message), true);
-          readToggle.disabled = false;
-        }
-      });
-      controls.append(node('span', '조회', 'toggle-caption'), readToggle);
-
-      summary.append(info, controls);
-      item.append(summary);
-
-      if (d.entities && d.entities.length > 0) {
-        accordion = node('div', undefined, 'entities-accordion');
-        accordion.hidden = !query;
-        for (const ent of d.entities) {
-          const row = node('div', undefined, 'entity-row');
-          const entName = node('span', `${ent.name} (${ent.area || '영역 미지정'})`);
-          const entToggle = node('button', undefined, 'toggle');
-          entToggle.type = 'button';
-          entToggle.role = 'switch';
-          entToggle.setAttribute('aria-label', `${ent.name} 제어 허용`);
-          entToggle.setAttribute('aria-checked', String(ent.enabled));
-          entToggle.addEventListener('click', async () => {
-            entToggle.disabled = true;
-            try {
-              await api('policy', {
-                method: 'PUT',
-                body: JSON.stringify({ entities: { [ent.entity_id]: { enabled: !ent.enabled } } }),
-              });
-              await loadDomains();
-            } catch (e) {
-              entToggle.disabled = false;
-            }
-          });
-          const entReadToggle = node('button', undefined, 'toggle');
-          entReadToggle.type = 'button';
-          entReadToggle.role = 'switch';
-          entReadToggle.setAttribute('aria-label', `${ent.name} 조회 허용`);
-          entReadToggle.setAttribute('aria-checked', String(Boolean(ent.read_enabled)));
-          entReadToggle.addEventListener('click', async () => {
-            entReadToggle.disabled = true;
-            try {
-              await api('policy', {
-                method: 'PUT',
-                body: JSON.stringify({
-                  entities: { [ent.entity_id]: { read_enabled: !ent.read_enabled } },
-                }),
-              });
-              await loadDomains();
-            } catch (e) {
-              entReadToggle.disabled = false;
-            }
-          });
-          row.append(entName, node('span', '제어', 'toggle-caption'), entToggle,
-            node('span', '조회', 'toggle-caption'), entReadToggle);
-          accordion.append(row);
-        }
-        item.append(accordion);
-      }
-
-      container.append(item);
+      controls.append(toggleListBtn);
     }
-    if (!container.children.length) container.append(node('p', '검색 결과가 없습니다.', 'muted empty'));
-  } catch {
-    // ignore
+
+    // Domain Master Control group
+    const masterControlGroup = node('div', undefined, 'toggle-group');
+    masterControlGroup.append(node('span', '제어', 'toggle-caption'));
+    const masterToggle = node('button', undefined, 'toggle');
+    masterToggle.type = 'button';
+    masterToggle.role = 'switch';
+    masterToggle.id = `toggle-domain-ctrl-${d.domain}`;
+    masterToggle.dataset.domain = d.domain;
+    masterToggle.dataset.action = 'control';
+    masterToggle.setAttribute('aria-label', `${d.label} 제어 허용`);
+    masterToggle.setAttribute('aria-checked', String(d.enabled));
+    const canControlDomain = d.supported && d.status !== 'deferred' && d.status !== 'query_only';
+    masterToggle.disabled = !canControlDomain || isPolicySaving;
+    if (!canControlDomain) masterControlGroup.classList.add('disabled');
+    masterToggle.addEventListener('click', async () => {
+      await updatePolicy({ domains: { [d.domain]: !d.enabled } });
+    });
+    masterControlGroup.append(masterToggle);
+    controls.append(masterControlGroup);
+
+    // Domain Master Read group
+    const masterReadGroup = node('div', undefined, 'toggle-group');
+    masterReadGroup.append(node('span', '조회', 'toggle-caption'));
+    const readToggle = node('button', undefined, 'toggle');
+    readToggle.type = 'button';
+    readToggle.role = 'switch';
+    readToggle.id = `toggle-domain-read-${d.domain}`;
+    readToggle.dataset.domain = d.domain;
+    readToggle.dataset.action = 'read';
+    readToggle.setAttribute('aria-label', `${d.label} 조회 허용`);
+    readToggle.setAttribute('aria-checked', String(Boolean(d.read_enabled)));
+    const canReadDomain = d.supported && d.status !== 'deferred';
+    readToggle.disabled = !canReadDomain || isPolicySaving;
+    if (!canReadDomain) masterReadGroup.classList.add('disabled');
+    readToggle.addEventListener('click', async () => {
+      await updatePolicy({ read_domains: { [d.domain]: !d.read_enabled } });
+    });
+    masterReadGroup.append(readToggle);
+    controls.append(masterReadGroup);
+
+    summary.append(info, controls);
+    item.append(summary);
+
+    if (hasEntities) {
+      accordion = node('div', undefined, 'entities-accordion');
+      accordion.id = accordionId;
+      accordion.hidden = !isExpanded;
+
+      for (const ent of matching) {
+        const row = node('div', undefined, 'entity-row');
+        row.dataset.entityId = ent.entity_id;
+
+        const nameCol = node('div', `${ent.name} (${ent.area || '영역 미지정'})`, 'entity-name-col');
+        const actionsCol = node('div', undefined, 'entity-actions-col');
+
+        // Entity control group
+        const entCtrlGroup = node('div', undefined, 'toggle-group');
+        entCtrlGroup.append(node('span', '제어', 'toggle-caption'));
+        const entToggle = node('button', undefined, 'toggle');
+        entToggle.type = 'button';
+        entToggle.role = 'switch';
+        entToggle.id = `toggle-ent-ctrl-${ent.entity_id}`;
+        entToggle.dataset.entityId = ent.entity_id;
+        entToggle.dataset.action = 'control';
+        entToggle.setAttribute('aria-label', `${ent.name} 제어 허용`);
+        entToggle.setAttribute('aria-checked', String(ent.enabled));
+        const canControlEnt = ent.controllable !== false && d.status !== 'query_only' && d.supported;
+        entToggle.disabled = !canControlEnt || isPolicySaving;
+        if (!canControlEnt) entCtrlGroup.classList.add('disabled');
+        entToggle.addEventListener('click', async () => {
+          await updatePolicy({ entities: { [ent.entity_id]: { enabled: !ent.enabled } } });
+        });
+        entCtrlGroup.append(entToggle);
+        actionsCol.append(entCtrlGroup);
+
+        // Entity read group
+        const entReadGroup = node('div', undefined, 'toggle-group');
+        entReadGroup.append(node('span', '조회', 'toggle-caption'));
+        const entReadToggle = node('button', undefined, 'toggle');
+        entReadToggle.type = 'button';
+        entReadToggle.role = 'switch';
+        entReadToggle.id = `toggle-ent-read-${ent.entity_id}`;
+        entReadToggle.dataset.entityId = ent.entity_id;
+        entReadToggle.dataset.action = 'read';
+        entReadToggle.setAttribute('aria-label', `${ent.name} 조회 허용`);
+        entReadToggle.setAttribute('aria-checked', String(Boolean(ent.read_enabled)));
+        entReadToggle.disabled = isPolicySaving || !d.supported;
+        entReadToggle.addEventListener('click', async () => {
+          await updatePolicy({ entities: { [ent.entity_id]: { read_enabled: !ent.read_enabled } } });
+        });
+        entReadGroup.append(entReadToggle);
+        actionsCol.append(entReadGroup);
+
+        row.append(nameCol, actionsCol);
+        accordion.append(row);
+      }
+      item.append(accordion);
+    }
+    frag.append(item);
+  }
+
+  if (matchCount === 0) {
+    frag.append(node('p', '검색 결과가 없습니다.', 'muted empty'));
+  }
+
+  container.replaceChildren(frag);
+}
+
+async function updatePolicy(policyBody) {
+  if (isPolicySaving) return;
+  isPolicySaving = true;
+  const feedback = $('policy-feedback');
+  if (feedback) feedback.textContent = '정책 저장 중…';
+
+  const activeEl = document.activeElement;
+  let focusTarget = null;
+  if (activeEl) {
+    if (activeEl.dataset.entityId) {
+      focusTarget = { type: 'entity', id: activeEl.dataset.entityId, action: activeEl.dataset.action };
+    } else if (activeEl.dataset.domain) {
+      focusTarget = { type: 'domain', id: activeEl.dataset.domain, action: activeEl.dataset.action };
+    }
+  }
+  const scrollY = window.scrollY;
+
+  // Immediately reflect busy state on toggles in DOM
+  document.querySelectorAll('#domains .toggle').forEach((t) => {
+    t.disabled = true;
+  });
+
+  try {
+    await api('policy', {
+      method: 'PUT',
+      body: JSON.stringify(policyBody),
+    });
+    if (feedback) feedback.textContent = '';
+    await loadDomains(true);
+  } catch (e) {
+    if (feedback) {
+      feedback.textContent = `정책 저장 실패: ${displayReason(e.message)}`;
+    }
+    userFeedback(`정책 저장 실패: ${displayReason(e.message)}`, true);
+    try {
+      await loadDomains(true);
+    } catch {
+      // ignore
+    }
+  } finally {
+    isPolicySaving = false;
+    renderDomains();
+    window.scrollTo({ top: scrollY, behavior: 'instant' });
+    if (focusTarget) {
+      let selector = '';
+      if (focusTarget.type === 'entity') {
+        selector = `button.toggle[data-entity-id="${CSS.escape(focusTarget.id)}"][data-action="${focusTarget.action}"]`;
+      } else if (focusTarget.type === 'domain') {
+        selector = `button.toggle[data-domain="${CSS.escape(focusTarget.id)}"][data-action="${focusTarget.action}"]`;
+      }
+      if (selector) {
+        const restored = document.querySelector(selector);
+        if (restored) restored.focus({ preventScroll: true });
+      }
+    }
+  }
+}
+
+async function loadDomains(refresh = false) {
+  const currentSeq = ++domainsRequestSeq;
+  try {
+    if (refresh || !cachedDomains.length) {
+      const data = await api('domains');
+      if (currentSeq !== domainsRequestSeq) {
+        // Discard stale response
+        return;
+      }
+      cachedDomains = data;
+    }
+    renderDomains();
+  } catch (err) {
+    if (currentSeq !== domainsRequestSeq) return;
+    const feedback = $('policy-feedback');
+    if (feedback && !feedback.textContent) {
+      feedback.textContent = '기기 목록 갱신에 실패했습니다.';
+    }
+    if (!cachedDomains.length) {
+      $('domains').replaceChildren(node('p', '기기 목록을 불러오지 못했습니다.', 'muted empty'));
+    } else {
+      renderDomains();
+    }
   }
 }
 
@@ -444,15 +605,81 @@ async function loadHistory() {
   try {
     const list = await api('history');
     const container = $('history');
-    container.replaceChildren();
 
     if (!list.length) {
-      container.append(node('p', '아직 실행 내역이 없습니다.', 'muted empty'));
+      container.replaceChildren(node('p', '아직 실행 내역이 없습니다.', 'muted empty'));
+      lastHistoryFingerprint = 'empty';
       return;
     }
 
-    for (const item of list.slice(0, 8)) {
+    const currentFingerprint = JSON.stringify(list.map((i) => ({
+      id: i.id,
+      created: i.created,
+      text: i.text,
+      status: i.status,
+      reason: i.reason,
+      phase: i.phase,
+      model: i.model,
+      providers: i.providers,
+      model_trace: i.model_trace,
+      timings_ms: i.timings_ms,
+      actions: i.actions,
+      decisions: i.decisions,
+      verification_score: i.verification_score,
+      scope_scores: i.scope_scores,
+      proposed_plan: i.proposed_plan,
+    })));
+
+    if (currentFingerprint === lastHistoryFingerprint) {
+      return;
+    }
+    lastHistoryFingerprint = currentFingerprint;
+
+    // 1. Capture pre scroll positions
+    const preScrolls = new Map();
+    container.querySelectorAll('.history-row').forEach((row) => {
+      const rid = row.dataset.requestId;
+      const pre = row.querySelector('.diagnostic-json');
+      if (rid && pre) {
+        preScrolls.set(rid, pre.scrollTop);
+      }
+    });
+
+    // 2. Capture focus
+    let focusedState = null;
+    const activeEl = document.activeElement;
+    if (activeEl && container.contains(activeEl)) {
+      const row = activeEl.closest('.history-row');
+      if (row && row.dataset.requestId) {
+        focusedState = {
+          requestId: row.dataset.requestId,
+          isSummary: activeEl.tagName.toLowerCase() === 'summary',
+          isPre: activeEl.classList.contains('diagnostic-json'),
+        };
+      }
+    }
+
+    // 3. Find top visible row in container for scroll anchor
+    let anchorRequestId = null;
+    let anchorRelativeTop = 0;
+    const containerScrollTop = container.scrollTop;
+    const containerRect = container.getBoundingClientRect();
+    for (const child of container.children) {
+      if (child.classList && child.classList.contains('history-row')) {
+        const childRect = child.getBoundingClientRect();
+        if (childRect.bottom > containerRect.top) {
+          anchorRequestId = child.dataset.requestId;
+          anchorRelativeTop = childRect.top - containerRect.top;
+          break;
+        }
+      }
+    }
+
+    const frag = document.createDocumentFragment();
+
+    for (const item of list) {
       const row = node('div', undefined, 'history-row');
+      row.dataset.requestId = item.id;
       const timeStr = new Date(item.created * 1000).toLocaleTimeString('ko-KR', {
         hour: '2-digit',
         minute: '2-digit',
@@ -474,14 +701,72 @@ async function loadHistory() {
       }
 
       body.append(node('div', displayReason(item.reason), 'result-detail'));
+
       const diagnostics = node('details');
+      if (openDiagnostics.has(item.id)) {
+        diagnostics.open = true;
+      }
+      diagnostics.addEventListener('toggle', () => {
+        if (diagnostics.open) openDiagnostics.add(item.id);
+        else openDiagnostics.delete(item.id);
+      });
+
       diagnostics.append(node('summary', '판단 및 단계별 진단'));
-      diagnostics.append(node('pre', JSON.stringify({request_id:item.id, phase:item.phase, model:item.model, model_trace:item.model_trace, providers:item.providers,
-        timings_ms:item.timings_ms, scope_scores:item.scope_scores, decisions:item.decisions,
-        verification_score:item.verification_score, proposed_plan:item.proposed_plan}, null, 2), 'diagnostic-json'));
+      const preEl = node('pre', JSON.stringify({
+        request_id: item.id,
+        phase: item.phase,
+        model: item.model,
+        model_trace: item.model_trace,
+        providers: item.providers,
+        timings_ms: item.timings_ms,
+        scope_scores: item.scope_scores,
+        decisions: item.decisions,
+        verification_score: item.verification_score,
+        proposed_plan: item.proposed_plan,
+      }, null, 2), 'diagnostic-json');
+      preEl.tabIndex = 0;
+      diagnostics.append(preEl);
       body.append(diagnostics);
       row.append(body);
-      container.append(row);
+      frag.append(row);
+    }
+
+    container.replaceChildren(frag);
+
+    // 4. Restore pre scroll tops
+    preScrolls.forEach((scrollTop, rid) => {
+      const row = container.querySelector(`.history-row[data-request-id="${CSS.escape(rid)}"]`);
+      if (row) {
+        const pre = row.querySelector('.diagnostic-json');
+        if (pre) pre.scrollTop = scrollTop;
+      }
+    });
+
+    // 5. Restore container scroll position using anchor in common coordinate system
+    if (anchorRequestId) {
+      const anchorRow = container.querySelector(`.history-row[data-request-id="${CSS.escape(anchorRequestId)}"]`);
+      if (anchorRow) {
+        const newContainerRect = container.getBoundingClientRect();
+        const newRowRect = anchorRow.getBoundingClientRect();
+        const currentRelativeTop = newRowRect.top - newContainerRect.top;
+        container.scrollTop += (currentRelativeTop - anchorRelativeTop);
+      } else {
+        container.scrollTop = containerScrollTop;
+      }
+    } else {
+      container.scrollTop = containerScrollTop;
+    }
+
+    // 6. Restore focus
+    if (focusedState) {
+      const row = container.querySelector(`.history-row[data-request-id="${CSS.escape(focusedState.requestId)}"]`);
+      if (row) {
+        if (focusedState.isSummary) {
+          row.querySelector('summary')?.focus({ preventScroll: true });
+        } else if (focusedState.isPre) {
+          row.querySelector('.diagnostic-json')?.focus({ preventScroll: true });
+        }
+      }
     }
   } catch {
     // ignore
@@ -499,7 +784,8 @@ $('mode-toggle').addEventListener('click', async () => {
   $('admin-view').hidden = !isAdminMode;
 
   if (isAdminMode) {
-    await Promise.all([loadConfig(), loadDomains(), loadHistory()]);
+    await loadStatus();
+    await Promise.all([loadConfig(), loadDomains(true), loadHistory()]);
   }
 });
 
@@ -510,6 +796,24 @@ $('command-form').addEventListener('submit', async (e) => {
   if (!text) return;
   input.value = '';
   await executeCommand(text);
+});
+
+// OpenRouter model select toggle
+$('cfg-openrouter-model-select').addEventListener('change', () => {
+  const sel = $('cfg-openrouter-model-select').value;
+  const customGroup = $('cfg-openrouter-custom-group');
+  const modelInput = $('cfg-openrouter-model');
+  if (sel === 'custom') {
+    customGroup.hidden = false;
+    modelInput.value = customModelDraft;
+    modelInput.focus();
+  } else {
+    customGroup.hidden = true;
+  }
+});
+
+$('cfg-openrouter-model')?.addEventListener('input', (e) => {
+  customModelDraft = e.target.value;
 });
 
 // Segmented control tabs
@@ -537,10 +841,16 @@ $('config-form').addEventListener('submit', async (e) => {
   const feedback = $('config-feedback');
   feedback.textContent = '설정 저장 중…';
 
+  const selectedModelChoice = $('cfg-openrouter-model-select').value;
+  let finalModel = selectedModelChoice;
+  if (selectedModelChoice === 'custom') {
+    finalModel = customModelDraft.trim() || $('cfg-openrouter-model').value.trim() || 'microsoft/microsoft-decision-1';
+  }
+
   const body = {};
   const changed = {
     provider: $('cfg-provider-priority').value,
-    openrouter_model: $('cfg-openrouter-model').value.trim() || 'microsoft/microsoft-decision-1',
+    openrouter_model: finalModel,
     azure_endpoint: $('cfg-azure-endpoint').value.trim(),
     azure_deployment: $('cfg-azure-deployment').value.trim(),
   };
@@ -577,7 +887,7 @@ $('rescan').addEventListener('click', async () => {
   try {
     await api('rescan', { method: 'POST', body: '{}' });
     await loadStatus();
-    await loadDomains();
+    await loadDomains(true);
     $('sync-status').textContent = '탐색이 완료되었습니다.';
   } catch (err) {
     $('sync-status').textContent = `탐색 실패: ${displayReason(err.message)}`;
@@ -623,12 +933,21 @@ async function downloadLogs() {
 $('download-logs')?.addEventListener('click', downloadLogs);
 
 $('clear-history').addEventListener('click', async () => {
+  if (!confirm('정말 실행 기록을 모두 삭제하시겠습니까?')) return;
+  const feedback = $('history-feedback');
+  if (feedback) feedback.textContent = '이력 삭제 중…';
   try {
     await api('history', { method: 'DELETE' });
+    openDiagnostics.clear();
+    lastHistoryFingerprint = '';
+    if (feedback) feedback.textContent = '이력이 삭제되었습니다.';
     await loadHistory();
     await loadShortcuts();
-  } catch {
-    // ignore
+    setTimeout(() => {
+      if (feedback) feedback.textContent = '';
+    }, 3000);
+  } catch (err) {
+    if (feedback) feedback.textContent = `이력 삭제 실패: ${displayReason(err.message)}`;
   }
 });
 
@@ -647,7 +966,10 @@ async function init() {
 
 init();
 
-$('entity-search').addEventListener('input', loadDomains);
+$('entity-search').addEventListener('input', () => {
+  renderDomains();
+});
+
 for (const id of ['tab-openrouter', 'tab-azure']) {
   $(id).addEventListener('keydown', (event) => {
     if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
