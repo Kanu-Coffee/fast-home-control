@@ -1,7 +1,9 @@
 import json
 import sqlite3
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
@@ -1610,8 +1612,13 @@ async def test_fix05_r2_readonly_calendar_get_events_end_to_end(ha, store):
     assert len(ha.calls) == 0  # no control dispatch
     dom, svc, eid, data = ha.response_calls[-1]
     assert (dom, svc, eid) == ("calendar", "get_events", "calendar.local")
-    assert data["start_date_time"].startswith("2026-10-15")
-    assert data["end_date_time"].startswith("2026-10-16")
+    # The engine resolves "tomorrow" against the live Asia/Seoul clock; assert the
+    # same window instead of pinning the date the test was written on.
+    seoul_now = datetime.now(ZoneInfo("Asia/Seoul"))
+    tomorrow = (seoul_now + timedelta(days=1)).strftime("%Y-%m-%d")
+    day_after = (seoul_now + timedelta(days=2)).strftime("%Y-%m-%d")
+    assert data["start_date_time"].startswith(tomorrow)
+    assert data["end_date_time"].startswith(day_after)
     assert "치과" in res["actions"][0]["query_result"]
     assert res["actions"][0]["response_contract"] == "ok"
 

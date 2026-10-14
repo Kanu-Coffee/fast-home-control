@@ -10,9 +10,17 @@
     - 데스크톱(1280×800): 헤더 로고 아이콘(24×24px) 정상 노출, 관리자 모드 토글 박스 44×44px 터치 영역 충족. 스크린샷: `real-ingress-desktop.png`.
     - 모바일(390×844): 가로 넘침 없음(`scrollWidth = clientWidth = 390px`), 최근 명령/리모컨 그리드 정상 배치. 스크린샷: `real-ingress-mobile.png`.
   - **조명 명령 실행**: Ingress에서 "거실불 꺼줘" 실행 → `status: succeeded`, 거실 조명(천장등/보조등) off, 타 영역(주방등) on 유지 확인.
-  - **정책 연속 저장 및 재시작 보존**: 개별 엔티티 및 도메인 정책 PUT 200 완료 후 Supervisor 애드온 재시작 → 재시작 후 `read_domains: {'switch': false}` 정책 보존 확인 후 기본값 원복.
-  - **진단 내역 내보내기**: `GET /api/history/export` 200 OK, application/zip 무결성 검증, 기본 익명화 시 원문 명령 텍스트 미포함 확인.
+  - **정책 저장 API 검증 (Round A)**: 개별 엔티티 및 도메인 정책 PUT 200 완료(스킬 1회 요청) 후 Supervisor 애드온 재시작 → 재시작 후 `read_domains: {'switch': false}` 정책 보존 확인. 실제 Ingress **UI 버튼 연속 조작** 검증은 FIX_04 보강(Round B)에서 수행.
+  - **진단 내역 내보내기 (범위 정정)**: `GET /api/history/export` 200 OK, application/zip 무결성 검증, 기본 익명화 시 원문 명령 텍스트 미포함 확인. 키·토큰 미포함 검사는 FIX_04 보강(Round B)에서 수행했고, Round A 시점의 probe는 원문 텍스트 제외만 검사했다.
   - 검증 완료 후 테스트 정책 원복, VM 정상 종료(stopped), 자원 증거는 `.local/fix10-install-verification.json` 및 `.local/test-resources.json`에 기록.
+
+### FIX_04 검증 보강 및 공개 기록 정정 (Round B, 2026-10-15)
+
+- R1 자산 규격 정정(실제 파일 기준): `addon/icon.png` **256×256**, `addon/logo.png` **512×512**, 마스터 `docs/branding/master-icon.png` 1024×1024, `docs/branding/social-preview.png` 1280×640. `addon/config.yaml`의 사이드바 설정은 `panel_icon: mdi:remote`다. 앞서 v0.2.0-dev.10 릴리스 본문과 이 문서에 기록된 icon 512×512 / logo 1024×512 및 `mdi:home-automation` 표기는 사실 오류로 정정한다(정정 전후 대조표는 `.handoff/002_ui-ux-and-official-branding/FIX_04_REPORT.md`).
+- 스토어 아이콘 노출 범위: Supervisor `/addons/{slug}/info`의 `icon=true`, `logo=true`(자산 제공 메타데이터)와 Ingress 정적 자산 200/MIME만 확인했다. 스토어 자산 HTTP 엔드포인트(`/store/{slug}/icon` 등)는 이 Supervisor에서 노출되지 않고(unknown_error), 스토어 목록/상세 **화면 렌더링 캡처는 미수행** — 화면 노출 확인으로 주장하지 않는다. GitHub README의 `addon/icon.png` 링크는 dev 브랜치에서 정상 노출되며, 저장소 Social preview는 GitHub 설정 수동 업로드가 필요한 잔여다.
+- R2 실제 Ingress UI 연속 편집(전용 HAOS Core 2026.10.1, dev.10, Chromium 1280×900): light·switch 두 도메인을 펼친 상태에서 ① `light.ceiling_lights` 제어 토글 ② `switch` 도메인 조회 토글 ③ `switch.ac` 제어 토글을 **연속 조작**, 각 요청 PUT `/api/policy` 200, 저장 중 토글 일괄 비활성(busy lock) 및 완료 후 재활성, 클릭 토글로 포커스 복원, 아코디언 펼침 유지(`aria-expanded=true`), 집계 문구(`제어 허용`/`조회 허용` 수) 갱신을 확인했다. 증거: `.local/fix04-r2-verification.json`, 스크린샷 `fix04-admin-policy-ui.png`.
+- R2 실제 모델 드롭다운: OpenRouter 선택에서 Jev 1.13 저장(POST `/api/config` 200) → 페이지 재로드 후 셀렉트값 유지, '직접 입력'에 초안 저장 → 재로드 후 셀렉트 `custom`·입력창 초안 유지 및 `GET /api/config`의 `openrouter_model` 반영(직접 입력은 실제 모델 호출 없이 옵션 저장만). 애드온 재시작 후에도 모델(초안)과 정책变更이 보존됨을 API·실제 UI 재진입 양쪽에서 확인 후 모델은 Microsoft preset, 정책은 baseline 유효값으로 완전 원복했다. 첫 Round A의 드롭다운 재로드 판정은 loadConfig보다 빠른 읽기 경합이 있었고 Round B에서 응답 대기 방식으로 재검증했다.
+- R2 익명화 ZIP 검사 범위(정확한 서술): 정상 조명 명령 성공(`succeeded`, 2×turn_off) 이력 상태에서 기본 내보내기 전 파일(`manifest.json`, `summary.json`, `requests.jsonl`) 대상 — 원문 명령 텍스트 미포함, OpenRouter API 키·HA access/refresh 토큰·Ingress 세션 토큰 문자열 미포함(일치 여부 bool만 기록, 값·원문 미출력). Azure 키는 이 환경에 미설정이라 스캔 대상에서 제외했고, Supervisor 주입 토큰 자체는 검증 환경에서 값 확보가 불가능해 검사하지 않았다.
 - **UI/UX 개선 및 브라우저 동작 검증 (`tests/test_browser_ui.py`)**:
   - **스위치 정렬 및 터치 영역 (R6)**: `.domain-summary` 및 `.entity-row`에서 제어와 조회 스위치를 각각 독립된 78px 폭의 `.toggle-group`으로 패키징. `.toggle`의 bounding box를 측정하여 가로 44px, 세로 44px의 터치 영역을 확보하고 내부 `::before` 가상 요소로 44×24px 시각 디자인을 유지. 제어 열과 조회 열의 X 좌표가 일치함을 확인.
   - **정책 저장 생명주기 및 경합 방어 (FIX_02 R2, R1)**: 도메인 정책 요청 세대 카운터(`domainsRequestSeq`)를 적용하여 느린 이전 GET 응답이 최신 정책 상태를 덮어쓰지 않도록 폐기. 정책 PUT 실행부터 후속 최신 GET 로드 완료 시점(`finally`)까지 `isPolicySaving = true`를 유지하여 토글 연타나 경합 중 비정상 토글 상태 방지. 특수문자 따옴표/대괄호가 포함된 기기 이름에서도 `[data-entity-id]` 기반으로 포커스를 복원함을 확인.
@@ -22,10 +30,10 @@
   - **실제 명령 실패 처리 및 대기 중 입력 보존 (Section 3 & 4)**: `page.evaluate()` 편법 없이 실제 route hold와 사용자 타이핑 상호작용으로 대기 중 입력 문장 보존 검증. 실패 시(503) 오류 피드백 노출 및 사용자가 새로 입력 중이지 않은 경우에만 원래 명령문 자동 복구 확인.
 - **브랜드 자산**:
   - `image-generator` 원본 기반 1024×1024 마스터 아이콘과 파생 자산(`docs/branding/master-icon.png`, `docs/branding/social-preview.png`, `addon/icon.png`, `addon/logo.png`, `addon/app/fhc/static/` 파비콘 및 PWA 아이콘) 배치.
-  - HA 애드온 스토어 icon/logo 및 Ingress 헤더 이미지, 파비콘 200 OK 응답 확인.
+  - Supervisor 애드온 info의 `icon=true`/`logo=true` 메타데이터(자산 제공 표시)와 Ingress 헤더 이미지·파비콘 200 OK 응답 확인. 스토어 목록/상세 화면의 실제 렌더링 캡처는 미수행(FIX_04 보강 절 참조).
 - **검증 한계 및 경계**:
   - 본 검증은 프로젝트 전용 가상 HAOS 및 로컬/CI 테스트 환경에서 수행되었으며, 실제 운영 Home Assistant 및 실제 유료 모델 API 호출은 포함하지 않음.
-  - GitHub 저장소 웹 설정(Settings -> Social preview)은 GitHub UI를 통한 수동 업로드가 필요하며 `docs/branding/social-preview.png` 파일로 제공됨. Home Assistant 좌측 사이드바 아이콘은 HA Supervisor의 MDI 아이콘 제약(`icon: mdi:home-automation`)이 유지됨.
+  - GitHub 저장소 웹 설정(Settings -> Social preview)은 GitHub UI를 통한 수동 업로드가 필요하며 `docs/branding/social-preview.png` 파일로 제공됨. Home Assistant 좌측 사이드바 아이콘은 HA Supervisor의 MDI 아이콘 제약으로 PNG 지정이 불가하며, 현행 설정은 `panel_icon: mdi:remote`다(이 문서 과거판의 `mdi:home-automation` 표기는 오류로 정정).
 
 # 0.2.0-dev.9 — FIX_08 단위 모델 응답 검증 보정 및 수치 정정 (2026-10-14)
 
