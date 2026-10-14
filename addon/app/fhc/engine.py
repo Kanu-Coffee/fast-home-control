@@ -208,20 +208,28 @@ class Engine:
 
     def _select_condition(self, answers, criteria):
         try:
-            source = choice(answers["condition_source"], criteria["condition_source"], minimum=0.6)
-            operator = choice(
-                answers["condition_operator"], criteria["condition_operator"], minimum=0.6
+            source = choice(
+                answers.get("condition_source"), criteria["condition_source"], minimum=0.6
             )
-            value = choice(answers["condition_value"], criteria["condition_value"], minimum=0.6)
+            operator = choice(
+                answers.get("condition_operator"), criteria["condition_operator"], minimum=0.6
+            )
+            value = choice(answers.get("condition_value"), criteria["condition_value"], minimum=0.6)
         except DecisionError as exc:
+            if exc.code == "invalid_model_response":
+                raise
             raise DecisionError("condition_evaluation_failed") from exc
         # The unit is advisory: the backend derives it from the literal span and the
         # sensor's native unit and enforces conflicts there. A split unit vote may
         # only downgrade to "none" (derive), never block a clear comparison.
+        # Malformed model responses (type/labels/probabilities) must fail closed.
         try:
-            unit = choice(answers["condition_unit"], criteria["condition_unit"], minimum=0.6)
-        except DecisionError:
-            unit = "none"
+            unit = choice(answers.get("condition_unit"), criteria["condition_unit"], minimum=0.6)
+        except DecisionError as exc:
+            if exc.code == "low_confidence":
+                unit = "none"
+            else:
+                raise
         return {"source": source, "operator": operator, "value": value, "unit": unit}
 
     async def _evaluate_condition(self, cond_sel, catalog, values, text):

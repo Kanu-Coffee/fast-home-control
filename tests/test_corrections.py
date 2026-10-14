@@ -2548,3 +2548,105 @@ async def test_fix06_r4_inbetween_condition_confidence_never_executes(ha, store)
     assert res["reason"] == "low_confidence"
     assert "condition_result" not in res or res.get("condition_result") is None
     assert len(ha.calls) == 0
+
+
+class MutatedUnitProvider(ScriptedProvider):
+    def __init__(self, targets=None, unit_answer=None, **kwargs):
+        super().__init__(targets=targets, **kwargs)
+        self.unit_answer = unit_answer
+
+    async def decide(self, state, questions):
+        answers, name = await super().decide(state, questions)
+        if "condition_unit" in questions and self.unit_answer is not None:
+            import copy
+
+            answers["condition_unit"] = copy.deepcopy(self.unit_answer)
+        return answers, name
+
+
+async def test_fix08_r1_malformed_condition_unit_fails_closed(ha, store):
+    ha.states["light.living"]["state"] = "on"
+    ha.registry.append({"entity_id": "sensor.living_temp", "id": "sens-lt"})
+    ha.states["sensor.living_temp"] = {
+        "state": "29",
+        "attributes": {
+            "friendly_name": "거실 온도",
+            "device_class": "temperature",
+            "unit_of_measurement": "°C",
+        },
+    }
+    store.set_policy({"domains": {"light": True, "sensor": True}, "entities": {}})
+
+    cmd = "거실 온도가 28℃ 이상이면 거실불 꺼줘"
+    base_targets = {
+        "천장등": {"power": "turn_off"},
+        "__condition__": {"source": "거실 온도", "operator": "gte", "value": "v0"},
+    }
+
+    # 1. Reviewer repro: invalid probability string
+    ha.calls.clear()
+    prov_invalid_str = MutatedUnitProvider(
+        base_targets,
+        unit_answer={
+            "type": "choice",
+            "choice": "°C",
+            "probabilities": {"°C": "not-a-probability"},
+        },
+    )
+    res = await execute(ha, store, prov_invalid_str, cmd)
+    assert res["status"] == "rejected"
+    assert res["reason"] == "invalid_model_response"
+    assert len(ha.calls) == 0
+
+    # 2. Malformed type (not 'choice')
+    ha.calls.clear()
+    prov_bad_type = MutatedUnitProvider(
+        base_targets,
+        unit_answer={"type": "invalid_type", "choice": "°C", "probabilities": {"°C": 1.0}},
+    )
+    res = await execute(ha, store, prov_bad_type, cmd)
+    assert res["status"] == "rejected"
+    assert res["reason"] == "invalid_model_response"
+    assert len(ha.calls) == 0
+
+    # 3. Probabilities sum mismatch (0.5 instead of ~1.0)
+    ha.calls.clear()
+    prov_bad_sum = MutatedUnitProvider(
+        base_targets,
+        unit_answer={
+            "type": "choice",
+            "choice": "°C",
+            "probabilities": {"°C": 0.5, "°F": 0.0, "%": 0.0, "none": 0.0},
+        },
+    )
+    res = await execute(ha, store, prov_bad_sum, cmd)
+    assert res["status"] == "rejected"
+    assert res["reason"] == "invalid_model_response"
+    assert len(ha.calls) == 0
+
+    # 4. Probabilities labels mismatch
+    ha.calls.clear()
+    prov_bad_labels = MutatedUnitProvider(
+        base_targets,
+        unit_answer={"type": "choice", "choice": "°C", "probabilities": {"wrong_label": 1.0}},
+    )
+    res = await execute(ha, store, prov_bad_labels, cmd)
+    assert res["status"] == "rejected"
+    assert res["reason"] == "invalid_model_response"
+    assert len(ha.calls) == 0
+
+    # 5. Low confidence unit: valid structure, but confidence is low (e.g. 0.45 < 0.6)
+    # Must fallback to unit="none", derive from literal/native, and SUCCEED!
+    ha.calls.clear()
+    prov_low_conf = MutatedUnitProvider(
+        base_targets,
+        unit_answer={
+            "type": "choice",
+            "choice": "°C",
+            "probabilities": {"°C": 0.45, "°F": 0.35, "%": 0.1, "none": 0.1},
+        },
+    )
+    res = await execute(ha, store, prov_low_conf, cmd)
+    assert res["status"] == "succeeded"
+    assert res.get("condition_result") is True
+    assert ha.calls == [("light", "turn_off", "light.living")]

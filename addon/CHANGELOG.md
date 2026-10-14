@@ -1,3 +1,8 @@
+# 0.2.0-dev.9
+
+- R1: `condition_unit` 선택 예외 처리에서 fallback 대상을 `low_confidence`로 엄격히 한정. `invalid_model_response`(malformed type/labels/probability/NaN/합계 불일치)는 정상 단위 파생으로 삼키지 않고 `invalid_model_response`로 fail-closed(HA 전송 0건) 처리.
+- R2: 문서 및 지원 범위 정정: 서비스 계약 8건 + 안전 음성 1건(총 9개 assertion)과 모델별 실단발 평가(Microsoft 6/8, Jev 2/8) 분모·사유 명확화.
+
 # 0.2.0-dev.8
 
 - R1: password 모드 `input_text`는 catalog 구성 단계에서 완전히 제외(조회/제어/모델 입력/내보내기 모두 차단). 조회·디테일·조건·내보너기 등 모든 경로에서 실제 `mode` 속성으로 민감 여부를 판정하고 ID 문자열 검사에 의존하지 않음. 과거 이력은 안전성 분류가 없거나 엔티티가 삭제되면 보수적으로 원문 제외.

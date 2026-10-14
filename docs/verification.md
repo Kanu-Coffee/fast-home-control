@@ -1,12 +1,31 @@
+# 0.2.0-dev.9 — FIX_08 단위 모델 응답 검증 보정 및 수치 정정 (2026-10-14)
+
+- 자동 테스트 115개 통과. Ruff check/format, JS 구문, `git diff --check` 통과.
+- **R1 조건 단위 검증 보정**: `condition_unit` 응답의 `choice()` 예외 처리에서 fallback 대상을 `low_confidence`로 엄격히 한정. malformed type, label 불일치, 비숫자/NaN 확률, 합계 불일치 등 `invalid_model_response`는 정상 단위 파생으로 삼키지 않고 fail-closed(HA 전송 0건) 거부. 확신도가 낮은 유효 응답은 literal/native 단위 안전 파생으로 처리되는 기존 성공 회귀 검증.
+- **R2 결과 표 및 검증 범위 명확화**: 아래 dev.8 절의 서비스 계약 및 모델별 단발 평가 수치를 레이어별/분모별로 정정.
+
 # 0.2.0-dev.8 — FIX_05~07 민감/정책/타입 매개변수·설치형 검증 (2026-10-14)
 
 기준 커밋 `cb6a248`(dev). 상세 라운드 증거는 `.handoff/001_domain-expansion-and-ux/FIX_05~07_REPORT.md`와 Git 제외 `.local/fix06-live-*.json`, `.local/fix07-install-verification.json`에 있다(키·토큰 원문 미기록).
 
 - 자동 테스트 114개 통과. Ruff check/format(20 files), JS 구문, `git diff --check` 통과. GitHub Checks(run 38489605884) test+arm-build success.
-- 공식 GitHub `#dev` 저장소 갱신→Supervisor 소스 빌드로 dev.6→**dev.8 설치·기동**을 프로젝트 전용 HAOS(Core 2026.10.1)에서 수행했다. 설치 앱 Ingress에서 관리자 세션으로 `거실불 꺼줘`를 실행, 실제 조명 2개 off·타 영역 조명 유지·2×turn_off sent를 read-back으로 확인했다.
+- 공식 GitHub `#dev` 저장소 갱신→Supervisor 소스 빌드로 dev.6→**dev.8 설치·기동**을 프로젝트 전용 HAOS(Core 2026.10.1)에서 수행했다. 설치 앱 Ingress에서 관리자 세션으로 `거실불 꺼줘`를 실행, 실제 조명 2개 off·타 영역 조명 유지·2×turn_off sent를 read-back으로 확인했다. 설치 앱에서 직접 확인한 범위는 조명 실행/정책·재시작/다운로드이며, 달력·TTS 등의 깊은 계약 검증은 호스트 Engine→동일 테스트 HA 경로를 사용했다.
 - 설치 앱 관리자 정책 토글(read_domains·개별 entity read_enabled)이 저장·조회·**addon 재시작 후 보존**됐다. 진단 ZIP 다운로드는 200/zip 파싱 성공, 기본 익명화에서 명령 원문이 제외됐고 토큰 조각이 본문에 없었다. 검증 후 잔여 테스트 정책은 기본값으로 되돌렸다.
-- **서비스 계약(모의 모델 라벨 + 실제 HA 서비스)**: 달력 start/end 생성 후 이벤트 제목 read-back, get_events 실제 `{"events":[...]}` 응답 표시, weather 지원 예보 유형 실응답, TTS speak의 media_player_entity_id=선택 스피커(고정 fallback 없음), todo 동명/부재 preflight 0전제 거부, input_datetime 오후 8시 30분→20:30 read-back, climate 목표온도 — **9/9**.
-- **실모델 왕복(정상+안전 사례 8건, 코드 cb6a248, fixture 한글 이름/배타 정책 정리)**: Microsoft Decision-1(응답 `…-20261009`) 6/8 — 조명 꺼기, typed 조건 false(0전송), TTS 출력 지정 전송, 일정/예보 실응답, 안전 거부 3건. 실패 2건(plan_not_verified)은 잘못된 실행 없이 0전송 거부였다. TypeSafe Jev 1.13은 2/8로 더 보수적이었다(동일 초기화·동일 기대값). 단발 확률 결과이며 일반 한국어 정확도 보장이 아니다.
+- **서비스 계약(호스트 Engine → 동일 테스트 HA, 모의 모델 라벨 + 실제 HA 서비스)**:
+  - **service_contract 8개 통과**: 달력 start/end 생성 후 이벤트 제목 read-back, get_events 실제 `{"events":[...]}` 응답 표시, weather 지원 예보 유형 실응답, TTS speak의 media_player_entity_id=선택 스피커(고정 fallback 없음), todo 동명/부재 preflight 0전제 거부, input_datetime 오후 8시 30분→20:30 read-back, climate 목표온도.
+  - **safety_negative 1개 통과**: 총 9개 assertion 통과.
+- **실모델 왕복(정상 요청 6건 + 음성 사례 2건, 합계 8건, 코드 cb6a248, fixture 한글 이름/배타 정책 정리)**:
+  - **Microsoft Decision-1**(응답 `…-20261009`) **전체 기대 결과 일치 6/8**:
+    - 정상 요청 6개 중 5개 성공 (조명 off, typed 조건 false(0전송), TTS 출력 지정 전송, 일정 조회, 예보 조회).
+    - 공조 온도 설정 1건은 `plan_not_verified`로 거부.
+    - 음성 사례 2개 중 1개 기대 사유 일치(TTS 모호 거부).
+    - todo 부재 사례는 기대 사유 `todo_item_not_found`와 달리 `plan_not_verified`로 거부(불일치, 0전송).
+    - 거부 사례의 실제 물리 전송은 모두 0건.
+  - **TypeSafe Jev 1.13** **전체 기대 결과 일치 2/8**:
+    - 정상 요청 6개 중 1개 공조 온도 설정 실전송 성공(나머지 5건은 거부).
+    - 음성 사례 2개 중 1개 기대 사유 일치(TTS 모호 거부).
+    - 거부 사례의 실제 물리 전송은 모두 0건.
+  - 위 결과는 고정 단발 평가이며 일반 한국어 정확도 보장이 아니다.
 - 이전 0.2.0-dev.6 기록은 아래에 보존한다.
 
 # 0.2.0-dev.6 — 단계 A 리뷰 수정 검증 (2026-10-13)
