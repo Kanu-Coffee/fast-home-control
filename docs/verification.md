@@ -1,3 +1,14 @@
+# 0.2.0-dev.8 — FIX_05~07 민감/정책/타입 매개변수·설치형 검증 (2026-10-14)
+
+기준 커밋 `cb6a248`(dev). 상세 라운드 증거는 `.handoff/001_domain-expansion-and-ux/FIX_05~07_REPORT.md`와 Git 제외 `.local/fix06-live-*.json`, `.local/fix07-install-verification.json`에 있다(키·토큰 원문 미기록).
+
+- 자동 테스트 114개 통과. Ruff check/format(20 files), JS 구문, `git diff --check` 통과. GitHub Checks(run 38489605884) test+arm-build success.
+- 공식 GitHub `#dev` 저장소 갱신→Supervisor 소스 빌드로 dev.6→**dev.8 설치·기동**을 프로젝트 전용 HAOS(Core 2026.10.1)에서 수행했다. 설치 앱 Ingress에서 관리자 세션으로 `거실불 꺼줘`를 실행, 실제 조명 2개 off·타 영역 조명 유지·2×turn_off sent를 read-back으로 확인했다.
+- 설치 앱 관리자 정책 토글(read_domains·개별 entity read_enabled)이 저장·조회·**addon 재시작 후 보존**됐다. 진단 ZIP 다운로드는 200/zip 파싱 성공, 기본 익명화에서 명령 원문이 제외됐고 토큰 조각이 본문에 없었다. 검증 후 잔여 테스트 정책은 기본값으로 되돌렸다.
+- **서비스 계약(모의 모델 라벨 + 실제 HA 서비스)**: 달력 start/end 생성 후 이벤트 제목 read-back, get_events 실제 `{"events":[...]}` 응답 표시, weather 지원 예보 유형 실응답, TTS speak의 media_player_entity_id=선택 스피커(고정 fallback 없음), todo 동명/부재 preflight 0전제 거부, input_datetime 오후 8시 30분→20:30 read-back, climate 목표온도 — **9/9**.
+- **실모델 왕복(정상+안전 사례 8건, 코드 cb6a248, fixture 한글 이름/배타 정책 정리)**: Microsoft Decision-1(응답 `…-20261009`) 6/8 — 조명 꺼기, typed 조건 false(0전송), TTS 출력 지정 전송, 일정/예보 실응답, 안전 거부 3건. 실패 2건(plan_not_verified)은 잘못된 실행 없이 0전송 거부였다. TypeSafe Jev 1.13은 2/8로 더 보수적이었다(동일 초기화·동일 기대값). 단발 확률 결과이며 일반 한국어 정확도 보장이 아니다.
+- 이전 0.2.0-dev.6 기록은 아래에 보존한다.
+
 # 0.2.0-dev.6 — 단계 A 리뷰 수정 검증 (2026-10-13)
 
 기준 앱 소스는 `0b0330b`이며 이전 0.1 검증 기록은 아래에 보존한다. 자세한 수정별 증거는 `.handoff/001_domain-expansion-and-ux/FIX_01_REPORT.md`, 실제 모델 사례별 결과는 [evidence/0.2.0-dev.5.json](evidence/0.2.0-dev.5.json)에 기록한다.
